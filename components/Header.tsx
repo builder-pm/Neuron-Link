@@ -45,7 +45,7 @@ const Header: React.FC<HeaderProps> = (props) => {
             title="Visit Portfolio"
           >
             <img src="/favicon-symbolic.png" alt="NeuronLink" className="h-7 w-7 mr-2 object-contain" />
-            <h1 className="text-xl font-bold text-primary font-mono tracking-wider uppercase">NeuronLink</h1>
+            <h1 className="text-xl font-bold text-primary font-mono tracking-wider uppercase">NeuronLink Explorer</h1>
           </a>
           {isGuest && (
             <div className="bg-yellow-400 text-black px-2 py-0.5 text-[10px] font-black uppercase tracking-tighter shadow-brutal border border-black animate-pulse">
@@ -78,7 +78,7 @@ const Header: React.FC<HeaderProps> = (props) => {
           </button>
           <div className="border-l-2 border-border h-6 mx-1"></div>
           <a
-            href="https://github.com/builder-pm/NeuronLink-lakehouse"
+            href="https://github.com/builder-pm/neuronlink-explorer"
             target="_blank"
             rel="noopener noreferrer"
             title="see source code"

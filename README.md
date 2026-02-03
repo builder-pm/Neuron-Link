@@ -1,8 +1,8 @@
-# 🧠 NeuronLink Lakehouse
+# 🧠 NeuronLink Explorer
 
 > **Empowering Business Users to Converse with Their Data.**
 
-NeuronLink Lakehouse is a self-service data exploration platform designed to dissolve the technical barrier between business users and complex data infrastructures. 
+NeuronLink Explorer is a self-service data exploration platform designed to dissolve the technical barrier between business users and complex data infrastructures. 
 
 ---
 
@@ -10,7 +10,7 @@ NeuronLink Lakehouse is a self-service data exploration platform designed to dis
 
 In the modern enterprise, data is "locked" behind SQL expertise or over-engineered BI dashboards. Business users often find themselves in a "data-waitlist" — waiting for analysts or engineers to write queries that should take seconds to answer.
 
-**NeuronLink Lakehouse exists to turn data consumption from a technical chore into a conversational experience. It allows you to explore complex databases just like playing with Excel.**
+**NeuronLink Explorer exists to turn data consumption from a technical chore into a conversational experience. It allows you to explore complex databases just like playing with Excel.**
 
 ### 🛑 The Problem: The "Analytic Gap"
 Most organizations face three core challenges:
@@ -24,7 +24,7 @@ Most organizations face three core challenges:
 
 Current market research indicates that **over 70% of data-driven decisions** are delayed due to technical bottlenecks. Enterprise SaaS companies, in particular, struggle with "Internal Tool Fatigue" where complex BI platforms (like Looker or Tableau) require dedicated teams just to maintain data models.
 
-**NeuronLink Lakehouse** is positioned as the "Agile Layer" for the modern enterprise stack, bridging the gap between raw data storage and actionable business intelligence.
+**NeuronLink Explorer** is positioned as the "Agile Layer" for the modern enterprise stack, bridging the gap between raw data storage and actionable business intelligence.
 
 ### 🎯 Who is this for?
 - **Product Managers**: To track MoM metrics and user behavior without begging for SQL help.
@@ -65,7 +65,7 @@ Standard enterprise tools have steep learning curves. NeuronLink reduces **Time-
 
 ## 🛠️ Installation & Setup
 
-Get started with NeuronLink Lakehouse locally in under 3 minutes.
+Get started with NeuronLink Explorer locally in under 3 minutes.
 
 ### Prerequisites
 - [Node.js](https://nodejs.org/) (v18 or higher)
@@ -75,8 +75,8 @@ Get started with NeuronLink Lakehouse locally in under 3 minutes.
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/builder-pm/NeuronLink-lakehouse.git
-   cd NeuronLink-lakehouse
+   git clone https://github.com/builder-pm/neuronlink-explorer.git
+   cd neuronlink-explorer
    ```
 
 2. **Install Dependencies:**
@@ -102,9 +102,9 @@ Get started with NeuronLink Lakehouse locally in under 3 minutes.
 
 ## 🤝 Connect & Contribute
 
-NeuronLink Lakehouse is built with passion by [Naman Kansal](https://namankansal.in). 
+NeuronLink Explorer is built with passion by [Naman Kansal](https://namankansal.in). 
 
-- **Source Code**: [GitHub](https://github.com/builder-pm/NeuronLink-lakehouse)
+- **Source Code**: [GitHub](https://github.com/builder-pm/neuronlink-explorer)
 - **Portfolio**: [namankansal.in](https://namankansal.in)
 
 ---
