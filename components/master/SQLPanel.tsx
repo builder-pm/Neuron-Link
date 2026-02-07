@@ -93,6 +93,11 @@ const SQLPanel: React.FC<SQLPanelProps> = ({ sqlQuery, onQueryChange, onExecute,
                     <div className="text-muted-foreground text-center mt-10 animate-pulse">
                         Executing query...
                     </div>
+                ) : executionError ? (
+                    <div className="p-4 border-2 border-destructive bg-destructive/10 text-destructive font-mono text-sm whitespace-pre-wrap overflow-auto max-h-full">
+                        <div className="font-bold mb-2 uppercase tracking-wide">SQL Execution Error</div>
+                        {executionError}
+                    </div>
                 ) : queryResults ? (
                     queryResults.length > 0 ? (
                         <>
