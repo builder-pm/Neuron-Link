@@ -86,6 +86,51 @@ const SQLPanel: React.FC<SQLPanelProps> = ({ sqlQuery, onQueryChange, onExecute,
                     </button>
                 </div>
             </div>
+
+            {/* Results Section */}
+            <div className="flex-1 overflow-auto p-4 bg-background">
+                {isExecutingQuery ? (
+                    <div className="text-muted-foreground text-center mt-10 animate-pulse">
+                        Executing query...
+                    </div>
+                ) : queryResults ? (
+                    queryResults.length > 0 ? (
+                        <>
+                            <div className="overflow-auto max-w-full">
+                                <table className="w-full text-sm text-left border-collapse">
+                                    <thead className="bg-muted sticky top-0 z-10">
+                                        <tr>
+                                            {Object.keys(queryResults[0]).map(header => (
+                                                <th key={header} className="px-4 py-2 font-semibold text-foreground whitespace-nowrap uppercase tracking-wide text-xs font-mono border-b-2 border-border">
+                                                    {header}
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border">
+                                        {queryResults.map((row, i) => (
+                                            <tr key={i} className="hover:bg-muted/50">
+                                                {Object.values(row).map((cell, j) => (
+                                                    <td key={j} className="px-4 py-2 whitespace-nowrap text-foreground max-w-xs truncate border-r border-border last:border-r-0">
+                                                        {cell !== null && cell !== undefined ? String(cell) : <span className="text-muted-foreground italic">null</span>}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div className="p-2 border-t-2 border-border bg-card text-xs text-muted-foreground font-mono">
+                                {queryResults.length} rows returned
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-muted-foreground text-center mt-10">No rows returned.</div>
+                    )
+                ) : (
+                    <div className="text-muted-foreground text-center mt-10">Run a query to see results here.</div>
+                )}
+            </div>
         </div>
     );
 };
