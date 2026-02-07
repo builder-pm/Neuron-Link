@@ -3,8 +3,8 @@ import { Editor } from '@monaco-editor/react';
 import { Play, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'sql-formatter';
-import { DataRow } from '../types';
-import { executeQuery } from '../services/database';
+import { DataRow } from '../../types';
+import { executeQuery } from '../../services/database';
 
 interface SQLPanelProps {
     sqlQuery: string;
