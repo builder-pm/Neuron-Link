@@ -12,18 +12,21 @@ import {
     CalculatorIcon,
     FolderIcon,
     CalendarIcon,
-    KeyIcon
+    KeyIcon,
+    SettingsIcon
 } from './icons';
-import { FieldGroups, ItemTypes, FieldAliases } from '../types';
+import { FieldGroups, ItemTypes, FieldAliases, FieldMetadata, SemanticDataType } from '../types';
 
 interface FieldGroupingPanelProps {
     groups: FieldGroups;
     fieldAliases: FieldAliases;
+    fieldMetadata: Record<string, FieldMetadata>;
     hiddenFields: Set<string>;
     setGroups?: React.Dispatch<React.SetStateAction<FieldGroups>>;
     onGroupsChange?: (newGroups: FieldGroups) => void;
     onFieldRename: (fieldKey: string, alias: string) => void;
     onFieldVisibilityToggle: (fieldKey: string, isHidden: boolean) => void;
+    onMetadataChange: (fieldKey: string, metadata: Partial<FieldMetadata>) => void;
     allFields: string[];
 }
 
@@ -33,8 +36,10 @@ interface DraggableFieldProps {
     fieldIndex: number;
     displayName: string;
     isHidden: boolean;
+    metadata?: FieldMetadata;
     onRename: (newName: string) => void;
     onToggleVisibility: () => void;
+    onMetadataChange: (metadata: Partial<FieldMetadata>) => void;
 }
 
 const DraggableField: React.FC<DraggableFieldProps> = ({
@@ -44,10 +49,13 @@ const DraggableField: React.FC<DraggableFieldProps> = ({
     displayName,
     isHidden,
     onRename,
-    onToggleVisibility
+    onToggleVisibility,
+    onMetadataChange
 }) => {
     const [isEditing, setIsEditing] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
     const [editValue, setEditValue] = useState(displayName);
+    const [description, setDescription] = useState(metadata?.description || '');
     const inputRef = useRef<HTMLInputElement>(null);
     const dragRef = useRef<HTMLDivElement>(null);
 
@@ -68,6 +76,11 @@ const DraggableField: React.FC<DraggableFieldProps> = ({
         }
     }, [isEditing]);
 
+    // Sync description with metadata changes
+    useEffect(() => {
+        setDescription(metadata?.description || '');
+    }, [metadata?.description]);
+
     const handleSave = () => {
         if (editValue.trim() && editValue !== displayName) {
             onRename(editValue.trim());
@@ -83,42 +96,92 @@ const DraggableField: React.FC<DraggableFieldProps> = ({
         }
     };
 
+    const handleDescriptionBlur = () => {
+        if (description !== metadata?.description) {
+            onMetadataChange({ description });
+        }
+    };
+
     return (
-        <div ref={dragRef} className={`flex items-center group/field p-1 pl-2 text-sm cursor-grab ${isDragging ? 'opacity-50' : ''}`}>
-            <MoveIcon className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
-            <div className="flex-1 min-w-0 mr-2">
-                {isEditing ? (
-                    <input
-                        ref={inputRef}
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onBlur={handleSave}
-                        onKeyDown={handleKeyDown}
-                        className="w-full px-1 py-0.5 text-sm bg-background border border-primary outline-none text-foreground"
-                    />
-                ) : (
-                    <span
-                        onClick={() => {
-                            setEditValue(displayName);
-                            setIsEditing(true);
+        <div ref={dragRef} className={`flex flex-col group/field ${isDragging ? 'opacity-50' : ''}`}>
+            <div className="flex items-center p-1 pl-2 text-sm cursor-grab">
+                <MoveIcon className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
+                <div className="flex-1 min-w-0 mr-2">
+                    {isEditing ? (
+                        <input
+                            ref={inputRef}
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onBlur={handleSave}
+                            onKeyDown={handleKeyDown}
+                            className="w-full px-1 py-0.5 text-sm bg-background border border-primary outline-none text-foreground"
+                        />
+                    ) : (
+                        <span
+                            onClick={() => {
+                                setEditValue(displayName);
+                                setIsEditing(true);
+                            }}
+                            className={`truncate block cursor-pointer hover:text-primary transition-colors hover:underline ${isHidden ? 'line-through text-muted-foreground opacity-60' : 'text-foreground'}`}
+                            title="Click to rename"
+                        >
+                            {displayName}
+                        </span>
+                    )}
+                </div>
+                <div className="flex items-center gap-1 opacity-0 group-hover/field:opacity-100 transition-opacity">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setShowSettings(!showSettings);
                         }}
-                        className={`truncate block cursor-pointer hover:text-primary transition-colors hover:underline ${isHidden ? 'line-through text-muted-foreground opacity-60' : 'text-foreground'}`}
-                        title="Click to rename"
+                        className={`p-1 rounded transition-colors ${showSettings ? 'text-primary bg-primary/10 opacity-100' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                        title="Edit metadata"
                     >
-                        {displayName}
-                    </span>
-                )}
+                        <SettingsIcon className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleVisibility();
+                        }}
+                        className={`p-1 rounded transition-colors ${isHidden ? 'text-destructive hover:bg-destructive/20 opacity-100' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                        title={isHidden ? 'Field is hidden' : 'Hide this field'}
+                    >
+                        {isHidden ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                    </button>
+                </div>
             </div>
-            <button
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleVisibility();
-                }}
-                className={`p-1 rounded transition-colors opacity-0 group-hover/field:opacity-100 ${isHidden ? 'text-destructive hover:bg-destructive/20 opacity-100' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
-                title={isHidden ? 'Field is hidden' : 'Hide this field'}
-            >
-                {isHidden ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
-            </button>
+
+            {showSettings && (
+                <div className="mx-2 mb-2 p-3 bg-muted/40 border border-border space-y-3 animate-in fade-in slide-in-from-top-1">
+                    <div>
+                        <label className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">Description</label>
+                        <textarea
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            onBlur={handleDescriptionBlur}
+                            className="w-full text-[11px] bg-background border border-border p-2 focus:border-primary focus:outline-none min-h-[60px] resize-none"
+                            placeholder="Add semantic meaning..."
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">Data Type</label>
+                        <select
+                            value={metadata?.dataType || 'dimension'}
+                            onChange={(e) => onMetadataChange({ dataType: e.target.value as SemanticDataType })}
+                            className="w-full text-[11px] bg-background border border-border p-1.5 focus:border-primary focus:outline-none uppercase font-bold"
+                        >
+                            <option value="dimension">Dimension (Categorical)</option>
+                            <option value="measure">Measure (Numeric)</option>
+                            <option value="date">Date / Time</option>
+                            <option value="identifier">Identifier (ID/Key)</option>
+                            <option value="text">Text (Description)</option>
+                            <option value="boolean">Boolean (True/False)</option>
+                        </select>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -141,24 +204,28 @@ interface DraggableGroupProps {
     groupName: string;
     fields: string[];
     fieldAliases: FieldAliases;
+    fieldMetadata: Record<string, FieldMetadata>;
     hiddenFields: Set<string>;
     onFieldDrop: (targetGroup: string, fieldName: string, sourceGroup: string, sourceIndex: number) => void;
     onRemoveField: (groupName: string, fieldName: string) => void;
     onRemoveGroup: (groupName: string) => void;
     onFieldRename: (fieldKey: string, alias: string) => void;
     onFieldVisibilityToggle: (fieldKey: string, isHidden: boolean) => void;
+    onMetadataChange: (fieldKey: string, metadata: Partial<FieldMetadata>) => void;
 }
 
 const GroupDropZone: React.FC<DraggableGroupProps> = ({
     groupName,
     fields,
     fieldAliases,
+    fieldMetadata,
     hiddenFields,
     onFieldDrop,
     onRemoveField,
     onRemoveGroup,
     onFieldRename,
-    onFieldVisibilityToggle
+    onFieldVisibilityToggle,
+    onMetadataChange
 }) => {
     const dropRef = useRef<HTMLDivElement>(null);
     const [{ isOver }, drop] = useDrop(() => ({
@@ -196,19 +263,23 @@ const GroupDropZone: React.FC<DraggableGroupProps> = ({
             </summary>
             <div ref={dropRef} className={`p-1 space-y-0.5 min-h-[2rem] transition-colors ${isOver ? 'bg-primary/10' : 'bg-transparent'}`}>
                 {fields.map((field, index) => (
-                    <div key={field} className="flex items-center justify-between hover:bg-muted group/row">
-                        <DraggableField
-                            fieldName={field}
-                            groupName={groupName}
-                            fieldIndex={index}
-                            displayName={fieldAliases[field] || field}
-                            isHidden={hiddenFields.has(field)}
-                            onRename={(newName) => onFieldRename(field, newName)}
-                            onToggleVisibility={() => onFieldVisibilityToggle(field, !hiddenFields.has(field))}
-                        />
+                    <div key={field} className="flex items-start justify-between hover:bg-muted group/row">
+                        <div className="flex-1">
+                            <DraggableField
+                                fieldName={field}
+                                groupName={groupName}
+                                fieldIndex={index}
+                                displayName={fieldAliases[field] || field}
+                                isHidden={hiddenFields.has(field)}
+                                metadata={fieldMetadata[field]}
+                                onRename={(newName) => onFieldRename(field, newName)}
+                                onToggleVisibility={() => onFieldVisibilityToggle(field, !hiddenFields.has(field))}
+                                onMetadataChange={(metadata) => onMetadataChange(field, metadata)}
+                            />
+                        </div>
                         <button
                             onClick={() => onRemoveField(groupName, field)}
-                            className="p-1 opacity-0 group-hover/row:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition-all shrink-0"
+                            className="p-1 mt-1 opacity-0 group-hover/row:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition-all shrink-0 mr-1"
                         >
                             <XIcon className="h-3.5 w-3.5 text-muted-foreground" />
                         </button>
@@ -223,11 +294,13 @@ const GroupDropZone: React.FC<DraggableGroupProps> = ({
 const FieldGroupingPanel: React.FC<FieldGroupingPanelProps> = ({
     groups,
     fieldAliases,
+    fieldMetadata,
     hiddenFields,
     setGroups,
     onGroupsChange,
     onFieldRename,
     onFieldVisibilityToggle,
+    onMetadataChange,
     allFields
 }) => {
     const [newGroupName, setNewGroupName] = useState('');
@@ -411,12 +484,14 @@ const FieldGroupingPanel: React.FC<FieldGroupingPanelProps> = ({
                             groupName={groupName}
                             fields={fields}
                             fieldAliases={fieldAliases}
+                            fieldMetadata={fieldMetadata}
                             hiddenFields={hiddenFields}
                             onFieldDrop={handleFieldDrop}
                             onRemoveField={handleRemoveField}
                             onRemoveGroup={handleRemoveGroup}
                             onFieldRename={onFieldRename}
                             onFieldVisibilityToggle={onFieldVisibilityToggle}
+                            onMetadataChange={onMetadataChange}
                         />
                     ))}
                 </div>

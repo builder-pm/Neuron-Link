@@ -1,5 +1,6 @@
-import { AppState, PivotConfig, ModelConfiguration } from '../types';
+import { AppState, PivotConfig, ModelConfiguration, FieldMetadata } from '../types';
 import { AppAction, ActionType } from './actions';
+import { inferDataType } from '../utils/metadataInference';
 import {
     initialSql,
     INITIAL_FIELD_GROUPS,
@@ -279,6 +280,7 @@ export const appReducer = (state: AppState, action: AppAction): AppState => {
             const { tableName, fields, isSelected } = action.payload;
             const newModelConfig = { ...state.modelConfiguration };
             let newJoins = state.joins;
+            const newFieldMetadata = { ...state.fieldMetadata };
 
             if (isSelected === false) { // Table is being deselected
                 delete newModelConfig[tableName];
@@ -287,14 +289,35 @@ export const appReducer = (state: AppState, action: AppAction): AppState => {
             } else if (isSelected === true) { // Table is being selected
                 const allFieldsForTable = state.discoveredTables.find(t => t.name === tableName)?.fields || [];
                 newModelConfig[tableName] = allFieldsForTable;
+                
+                // Initialize metadata for these fields
+                allFieldsForTable.forEach(field => {
+                    const fieldKey = `${tableName}.${field}`;
+                    if (!newFieldMetadata[fieldKey]) {
+                        newFieldMetadata[fieldKey] = {
+                            dataType: inferDataType(field)
+                        };
+                    }
+                });
             } else if (fields) { // Fields for an existing table are being updated
                 newModelConfig[tableName] = fields;
+                
+                // Initialize metadata for any new fields
+                fields.forEach(field => {
+                    const fieldKey = `${tableName}.${field}`;
+                    if (!newFieldMetadata[fieldKey]) {
+                        newFieldMetadata[fieldKey] = {
+                            dataType: inferDataType(field)
+                        };
+                    }
+                });
             }
 
             return {
                 ...state,
                 modelConfiguration: newModelConfig,
                 joins: newJoins,
+                fieldMetadata: newFieldMetadata,
                 isModelDirty: true
             };
         }

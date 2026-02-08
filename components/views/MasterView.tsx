@@ -308,8 +308,23 @@ const FixedRightPanel = ({ state, dispatch, onPreviewTable, previewData, onClear
                     <div className="h-full overflow-hidden flex flex-col">
                         <FieldGroupingPanel
                             groups={state.fieldGroups}
+                            fieldAliases={state.fieldAliases}
+                            fieldMetadata={state.fieldMetadata}
+                            hiddenFields={state.hiddenFields}
                             allFields={allFields}
                             onGroupsChange={(newGroups) => dispatch({ type: ActionType.SET_FIELD_GROUPS, payload: newGroups })}
+                            onFieldRename={(fieldKey, alias) => dispatch({
+                                type: ActionType.SET_FIELD_ALIAS,
+                                payload: { fieldKey, alias }
+                            })}
+                            onFieldVisibilityToggle={(fieldKey, isHidden) => dispatch({
+                                type: ActionType.SET_FIELD_VISIBILITY,
+                                payload: { fieldKey, isHidden }
+                            })}
+                            onMetadataChange={(fieldKey, metadata) => dispatch({
+                                type: ActionType.SET_FIELD_METADATA,
+                                payload: { fieldKey, metadata }
+                            })}
                         />
                     </div>
                 )}
