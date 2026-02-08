@@ -278,5 +278,7 @@ export const TableIcon: React.FC<IconProps> = ({ className }) => (
 export { 
   Calendar as CalendarIcon, 
   Key as KeyIcon,
-  Wand2 as WandIcon
+  Wand2 as WandIcon,
+  Link as LinkIcon,
+  AlertTriangle as AlertTriangleIcon
 } from 'lucide-react';
