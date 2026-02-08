@@ -53,6 +53,18 @@ const SQLPanel: React.FC<SQLPanelProps> = ({
         return map;
     }, [tables]);
 
+    // Helper to extract column name from various formats: "table"."col", table.col, col
+    const extractColumnName = (colStr: string): string => {
+        const trimmed = colStr.trim();
+        // Match "table"."column" or table.column patterns
+        const dotMatch = trimmed.match(/(?:["']?\w+["']?\.)?["']?(\w+)["']?$/);
+        if (dotMatch) {
+            return dotMatch[1].toLowerCase();
+        }
+        // Just return cleaned version
+        return trimmed.replace(/["']/g, '').toLowerCase();
+    };
+
     // Toggle between SELECT * and expanded column names
     const handleToggleColumns = () => {
         const newExpanded = !isColumnsExpanded;
@@ -61,48 +73,57 @@ const SQLPanel: React.FC<SQLPanelProps> = ({
         if (newExpanded) {
             // Expand: Replace SELECT * FROM table with SELECT col1, col2, ... FROM table
             let newQuery = sqlQuery;
+            // Match SELECT * FROM "table" or SELECT * FROM table
             const starPattern = /SELECT\s+\*\s+FROM\s+["']?(\w+)["']?/gi;
-            let match;
-            while ((match = starPattern.exec(sqlQuery)) !== null) {
-                const tableName = match[1].toLowerCase();
+            const matches: { match: string; tableName: string; fullTableRef: string }[] = [];
+
+            let m;
+            while ((m = starPattern.exec(sqlQuery)) !== null) {
+                matches.push({ match: m[0], tableName: m[1].toLowerCase(), fullTableRef: m[1] });
+            }
+
+            matches.forEach(({ match, tableName, fullTableRef }) => {
                 const columns = tableSchemaMap[tableName];
                 if (columns && columns.length > 0) {
-                    const columnList = columns.join(', ');
-                    const replacement = `SELECT ${columnList} FROM ${match[1]}`;
-                    newQuery = newQuery.replace(match[0], replacement);
+                    // Format columns with table prefix and quotes
+                    const columnList = columns.map(c => `"${fullTableRef}"."${c}"`).join(',\n    ');
+                    const replacement = `SELECT\n    ${columnList}\nFROM "${fullTableRef}"`;
+                    newQuery = newQuery.replace(match, replacement);
                 }
-            }
+            });
+
             onQueryChange(newQuery);
         } else {
             // Collapse: Replace SELECT col1, col2, ... FROM table with SELECT * FROM table
             // Only if ALL columns of the table are selected
             let newQuery = sqlQuery;
 
-            // Match SELECT ... FROM table patterns
+            // Match SELECT ... FROM table patterns (handles multiline)
             const selectPattern = /SELECT\s+([\s\S]*?)\s+FROM\s+["']?(\w+)["']?/gi;
-            let match;
             const replacements: { original: string; replacement: string }[] = [];
 
+            let match;
             while ((match = selectPattern.exec(sqlQuery)) !== null) {
                 const columnsPart = match[1].trim();
                 const tableName = match[2].toLowerCase();
                 const tableColumns = tableSchemaMap[tableName];
 
                 if (tableColumns && columnsPart !== '*') {
-                    // Parse the columns in the SELECT
+                    // Parse the columns in the SELECT, handling "table"."col" format
                     const selectedCols = columnsPart
                         .split(',')
-                        .map(c => c.trim().toLowerCase())
+                        .map(c => extractColumnName(c))
                         .filter(c => c.length > 0);
 
                     // Check if all table columns are selected (order doesn't matter)
-                    const allSelected = tableColumns.length === selectedCols.length &&
-                        tableColumns.every(tc => selectedCols.includes(tc.toLowerCase()));
+                    const tableColsLower = tableColumns.map(tc => tc.toLowerCase());
+                    const allSelected = tableColsLower.length === selectedCols.length &&
+                        tableColsLower.every(tc => selectedCols.includes(tc));
 
                     if (allSelected) {
                         replacements.push({
                             original: match[0],
-                            replacement: `SELECT * FROM ${match[2]}`
+                            replacement: `SELECT * FROM "${match[2]}"`
                         });
                     }
                 }
@@ -294,8 +315,8 @@ const SQLPanel: React.FC<SQLPanelProps> = ({
 
             {/* Editor Section - Takes remaining height */}
             <div ref={containerRef} className="flex-1 min-h-0 flex flex-col">
-                {/* Monaco Editor - Dynamic height based on divider */}
-                <div style={{ height: `${dividerPosition}%`, minHeight: '150px' }}>
+                {/* Monaco Editor - Expands when results collapsed */}
+                <div style={{ height: isResultsCollapsed ? 'calc(100% - 48px)' : `${dividerPosition}%`, minHeight: '150px' }} className="transition-all duration-200">
                     <Editor
                         height="100%"
                         language="sql"
