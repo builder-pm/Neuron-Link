@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Editor, OnMount } from '@monaco-editor/react';
-import { Play, AlignLeft, Rows3, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Play, AlignLeft, Rows3, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, ChevronUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'sql-formatter';
 import { DataRow } from '../../types';
@@ -35,6 +35,7 @@ const SQLPanel: React.FC<SQLPanelProps> = ({
     const [editorRef, setEditorRef] = useState<any>(null);
     const [dividerPosition, setDividerPosition] = useState<number>(40); // percentage for editor height
     const [isDragging, setIsDragging] = useState<boolean>(false);
+    const [isResultsCollapsed, setIsResultsCollapsed] = useState<boolean>(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
     const totalPages = queryResults ? Math.ceil(queryResults.length / ROWS_PER_PAGE) : 0;
@@ -231,17 +232,22 @@ const SQLPanel: React.FC<SQLPanelProps> = ({
                     />
                 </div>
 
-                {/* Resizable Divider */}
-                <div
-                    onMouseDown={handleDividerMouseDown}
-                    className={`h-1.5 bg-border hover:bg-primary/50 cursor-ns-resize relative transition-colors flex items-center justify-center ${isDragging ? 'bg-primary' : ''}`}
-                    title="Drag to resize"
-                >
-                    <div className="w-12 h-0.5 bg-muted-foreground/30 rounded-full" />
-                </div>
+                {/* Resizable Divider - Hide when results are collapsed */}
+                {!isResultsCollapsed && (
+                    <div
+                        onMouseDown={handleDividerMouseDown}
+                        className={`h-1.5 bg-border hover:bg-primary/50 cursor-ns-resize relative transition-colors flex items-center justify-center ${isDragging ? 'bg-primary' : ''}`}
+                        title="Drag to resize"
+                    >
+                        <div className="w-12 h-0.5 bg-muted-foreground/30 rounded-full" />
+                    </div>
+                )}
 
-                {/* Results Section - Dynamic height based on divider */}
-                <div style={{ height: `${100 - dividerPosition}%` }} className="min-h-0 flex flex-col bg-background">
+                {/* Results Section - Dynamic height based on divider and collapse state */}
+                <div
+                    style={{ height: isResultsCollapsed ? '48px' : `${100 - dividerPosition}%` }}
+                    className="min-h-0 flex flex-col bg-background transition-all duration-200"
+                >
                     {isExecutingQuery ? (
                         <div className="flex-1 flex items-center justify-center">
                             <div className="text-muted-foreground text-center animate-pulse">
@@ -258,8 +264,9 @@ const SQLPanel: React.FC<SQLPanelProps> = ({
                     ) : queryResults ? (
                         queryResults.length > 0 ? (
                             <>
-                                {/* Results Table */}
-                                <div className="flex-1 overflow-auto">
+                                {/* Results Table - Hide when collapsed */}
+                                {!isResultsCollapsed && (
+                                    <div className="flex-1 overflow-auto">
                                     <table className="w-full text-sm text-left border-collapse">
                                         <thead className="bg-muted sticky top-0 z-10">
                                             <tr>
@@ -302,14 +309,28 @@ const SQLPanel: React.FC<SQLPanelProps> = ({
                                         </tbody>
                                     </table>
                                 </div>
+                                )}
 
                                 {/* Pagination Footer */}
                                 <div className="h-12 border-t-2 border-border bg-card flex items-center justify-between px-4 shrink-0">
-                                    <div className="text-xs text-muted-foreground font-mono">
-                                        Showing {startRow + 1}-{Math.min(endRow, queryResults.length)} of {queryResults.length} rows
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={() => setIsResultsCollapsed(!isResultsCollapsed)}
+                                            className="flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                            title={isResultsCollapsed ? "Expand Results" : "Collapse Results"}
+                                        >
+                                            {isResultsCollapsed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                            <span className="font-mono">{isResultsCollapsed ? "Expand" : "Collapse"}</span>
+                                        </button>
+                                        <div className="text-xs text-muted-foreground font-mono">
+                                            {isResultsCollapsed
+                                                ? `${queryResults.length} rows`
+                                                : `Showing ${startRow + 1}-${Math.min(endRow, queryResults.length)} of ${queryResults.length} rows`
+                                            }
+                                        </div>
                                     </div>
 
-                                    {totalPages > 1 && (
+                                    {!isResultsCollapsed && totalPages > 1 && (
                                         <div className="flex items-center gap-1">
                                             <button
                                                 onClick={() => goToPage(1)}
