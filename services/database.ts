@@ -1,4 +1,4 @@
-import { DataRow, PivotConfig, Filter } from '../types';
+import { DataRow } from '../types';
 import { JOBS_DATA, COUNTRIES_DATA, SOURCES_DATA } from '../constants';
 // @ts-ignore
 import initSqlJs from 'sql.js';
@@ -77,9 +77,9 @@ export const executeQuery = async (query: string): Promise<DataRow[]> => {
         
         // Convert SQL.js output to a more usable format
         const { columns, values } = results[0];
-        return values.map(row => {
+        return values.map((row: any) => {
             const rowObject: DataRow = {};
-            columns.forEach((col, i) => {
+            columns.forEach((col: string, i: number) => {
                 rowObject[col] = row[i];
             });
             return rowObject;
@@ -92,9 +92,9 @@ export const executeQuery = async (query: string): Promise<DataRow[]> => {
 
 export const discoverTables = async (): Promise<{ name: string; fields: string[] }[]> => {
     if (!db) throw new Error("Database not initialized.");
-    
+
     const tablesResult = await executeQuery("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';");
-    
+
     const schemaPromises = tablesResult.map(async (table: any) => {
         const tableName = table.name as string;
         const fieldsResult = await executeQuery(`PRAGMA table_info("${tableName}");`);
@@ -103,4 +103,21 @@ export const discoverTables = async (): Promise<{ name: string; fields: string[]
     });
 
     return Promise.all(schemaPromises);
+};
+
+/**
+ * Fetches top 50 distinct non-null sample values for a field.
+ * Works with SQLite (local) database.
+ */
+export const fetchSampleValues = async (tableName: string, fieldName: string): Promise<string[]> => {
+    if (!db) throw new Error("Database not initialized.");
+
+    try {
+        const query = `SELECT DISTINCT "${fieldName}" FROM "${tableName}" WHERE "${fieldName}" IS NOT NULL LIMIT 50;`;
+        const results = await executeQuery(query);
+        return results.map(row => String(row[fieldName]));
+    } catch (e) {
+        console.error(`Error fetching sample values for ${tableName}.${fieldName}:`, e);
+        throw e;
+    }
 };

@@ -11,6 +11,7 @@ import { AppAction, ActionType } from '../../state/actions';
 import { SettingsIcon, EyeIcon, RotateCcwIcon, XIcon, SqlIcon } from '../icons';
 import toast from 'react-hot-toast';
 import { X, Search } from 'lucide-react';
+import * as db from '../../services/database';
 
 // 1. Central Area: New Structure with Header and Overlay Support
 interface CentralAreaProps {
@@ -311,6 +312,7 @@ const FixedRightPanel = ({ state, dispatch, onPreviewTable, previewData, onClear
                             fieldAliases={state.fieldAliases}
                             fieldMetadata={state.fieldMetadata}
                             hiddenFields={state.hiddenFields}
+                            sampleValues={state.sampleValues}
                             allFields={allFields}
                             onGroupsChange={(newGroups) => dispatch({ type: ActionType.SET_FIELD_GROUPS, payload: newGroups })}
                             onFieldRename={(fieldKey, alias) => dispatch({
@@ -325,6 +327,14 @@ const FixedRightPanel = ({ state, dispatch, onPreviewTable, previewData, onClear
                                 type: ActionType.SET_FIELD_METADATA,
                                 payload: { fieldKey, metadata }
                             })}
+                            onScanValues={async (fieldKey) => {
+                                const [tableName, fieldName] = fieldKey.split('.');
+                                const values = await db.fetchSampleValues(tableName, fieldName);
+                                dispatch({
+                                    type: ActionType.SET_SAMPLE_VALUES,
+                                    payload: { fieldKey, values }
+                                });
+                            }}
                         />
                     </div>
                 )}

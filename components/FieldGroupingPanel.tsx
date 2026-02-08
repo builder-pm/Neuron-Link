@@ -22,11 +22,13 @@ interface FieldGroupingPanelProps {
     fieldAliases: FieldAliases;
     fieldMetadata: Record<string, FieldMetadata>;
     hiddenFields: Set<string>;
+    sampleValues: Record<string, string[]>;
     setGroups?: React.Dispatch<React.SetStateAction<FieldGroups>>;
     onGroupsChange?: (newGroups: FieldGroups) => void;
     onFieldRename: (fieldKey: string, alias: string) => void;
     onFieldVisibilityToggle: (fieldKey: string, isHidden: boolean) => void;
     onMetadataChange: (fieldKey: string, metadata: Partial<FieldMetadata>) => void;
+    onScanValues: (fieldKey: string) => Promise<void>;
     allFields: string[];
 }
 
@@ -37,9 +39,11 @@ interface DraggableFieldProps {
     displayName: string;
     isHidden: boolean;
     metadata?: FieldMetadata;
+    sampleValues?: string[];
     onRename: (newName: string) => void;
     onToggleVisibility: () => void;
     onMetadataChange: (metadata: Partial<FieldMetadata>) => void;
+    onScanValues: () => Promise<void>;
 }
 
 const DraggableField: React.FC<DraggableFieldProps> = ({
@@ -49,14 +53,17 @@ const DraggableField: React.FC<DraggableFieldProps> = ({
     displayName,
     isHidden,
     metadata,
+    sampleValues,
     onRename,
     onToggleVisibility,
-    onMetadataChange
+    onMetadataChange,
+    onScanValues
 }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [editValue, setEditValue] = useState(displayName);
     const [description, setDescription] = useState(metadata?.description || '');
+    const [isScanning, setIsScanning] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const dragRef = useRef<HTMLDivElement>(null);
 
@@ -106,6 +113,18 @@ const DraggableField: React.FC<DraggableFieldProps> = ({
         onMetadataChange({ description });
         toast.success(`Metadata updated for ${fieldName.split('.').pop()}`);
         setShowSettings(false);
+    };
+
+    const handleScanValues = async () => {
+        setIsScanning(true);
+        try {
+            await onScanValues();
+            toast.success(`Scanned values for ${fieldName.split('.').pop()}`);
+        } catch (e) {
+            toast.error('Failed to scan values');
+        } finally {
+            setIsScanning(false);
+        }
     };
 
     return (
@@ -189,6 +208,36 @@ const DraggableField: React.FC<DraggableFieldProps> = ({
                             <option value="boolean">Boolean (True/False)</option>
                         </select>
                     </div>
+                    <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Sample Values</label>
+                            <button
+                                onClick={handleScanValues}
+                                disabled={isScanning}
+                                className="px-2 py-0.5 text-[9px] font-bold uppercase bg-muted hover:bg-muted/80 border border-border disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isScanning ? 'Scanning...' : 'Scan'}
+                            </button>
+                        </div>
+                        {sampleValues && sampleValues.length > 0 ? (
+                            <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto p-2 bg-background border border-border">
+                                {sampleValues.slice(0, 10).map((val, i) => (
+                                    <span key={i} className="px-1.5 py-0.5 text-[10px] bg-muted border border-border truncate max-w-[100px]" title={val}>
+                                        {val}
+                                    </span>
+                                ))}
+                                {sampleValues.length > 10 && (
+                                    <span className="px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                        +{sampleValues.length - 10} more
+                                    </span>
+                                )}
+                            </div>
+                        ) : (
+                            <p className="text-[10px] text-muted-foreground italic p-2 bg-background border border-border">
+                                Not scanned yet
+                            </p>
+                        )}
+                    </div>
                     <div className="flex justify-end gap-2 pt-2 border-t border-border">
                         <button
                             onClick={() => setShowSettings(false)}
@@ -229,12 +278,14 @@ interface DraggableGroupProps {
     fieldAliases: FieldAliases;
     fieldMetadata: Record<string, FieldMetadata>;
     hiddenFields: Set<string>;
+    sampleValues: Record<string, string[]>;
     onFieldDrop: (targetGroup: string, fieldName: string, sourceGroup: string, sourceIndex: number) => void;
     onRemoveField: (groupName: string, fieldName: string) => void;
     onRemoveGroup: (groupName: string) => void;
     onFieldRename: (fieldKey: string, alias: string) => void;
     onFieldVisibilityToggle: (fieldKey: string, isHidden: boolean) => void;
     onMetadataChange: (fieldKey: string, metadata: Partial<FieldMetadata>) => void;
+    onScanValues: (fieldKey: string) => Promise<void>;
 }
 
 const GroupDropZone: React.FC<DraggableGroupProps> = ({
@@ -243,12 +294,14 @@ const GroupDropZone: React.FC<DraggableGroupProps> = ({
     fieldAliases,
     fieldMetadata,
     hiddenFields,
+    sampleValues,
     onFieldDrop,
     onRemoveField,
     onRemoveGroup,
     onFieldRename,
     onFieldVisibilityToggle,
-    onMetadataChange
+    onMetadataChange,
+    onScanValues
 }) => {
     const dropRef = useRef<HTMLDivElement>(null);
     const [{ isOver }, drop] = useDrop(() => ({
@@ -295,9 +348,11 @@ const GroupDropZone: React.FC<DraggableGroupProps> = ({
                                 displayName={fieldAliases[field] || field}
                                 isHidden={hiddenFields.has(field)}
                                 metadata={fieldMetadata[field]}
+                                sampleValues={sampleValues[field]}
                                 onRename={(newName) => onFieldRename(field, newName)}
                                 onToggleVisibility={() => onFieldVisibilityToggle(field, !hiddenFields.has(field))}
                                 onMetadataChange={(metadata) => onMetadataChange(field, metadata)}
+                                onScanValues={() => onScanValues(field)}
                             />
                         </div>
                         <button
@@ -319,11 +374,13 @@ const FieldGroupingPanel: React.FC<FieldGroupingPanelProps> = ({
     fieldAliases,
     fieldMetadata,
     hiddenFields,
+    sampleValues,
     setGroups,
     onGroupsChange,
     onFieldRename,
     onFieldVisibilityToggle,
     onMetadataChange,
+    onScanValues,
     allFields
 }) => {
     const [newGroupName, setNewGroupName] = useState('');
@@ -509,12 +566,14 @@ const FieldGroupingPanel: React.FC<FieldGroupingPanelProps> = ({
                             fieldAliases={fieldAliases}
                             fieldMetadata={fieldMetadata}
                             hiddenFields={hiddenFields}
+                            sampleValues={sampleValues}
                             onFieldDrop={handleFieldDrop}
                             onRemoveField={handleRemoveField}
                             onRemoveGroup={handleRemoveGroup}
                             onFieldRename={onFieldRename}
                             onFieldVisibilityToggle={onFieldVisibilityToggle}
                             onMetadataChange={onMetadataChange}
+                            onScanValues={onScanValues}
                         />
                     ))}
                 </div>
