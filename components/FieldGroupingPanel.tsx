@@ -98,9 +98,14 @@ const DraggableField: React.FC<DraggableFieldProps> = ({
     };
 
     const handleDescriptionBlur = () => {
-        if (description !== metadata?.description) {
-            onMetadataChange({ description });
-        }
+        // We now use the Save button for descriptions, but keep blur for auto-save if desired
+        // For now, let's stick to the explicit button as per user request
+    };
+
+    const handleSaveMetadata = () => {
+        onMetadataChange({ description });
+        toast.success(`Metadata updated for ${fieldName.split('.').pop()}`);
+        setShowSettings(false);
     };
 
     return (
@@ -161,7 +166,6 @@ const DraggableField: React.FC<DraggableFieldProps> = ({
                         <textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            onBlur={handleDescriptionBlur}
                             className="w-full text-[11px] bg-background border border-border p-2 focus:border-primary focus:outline-none min-h-[60px] resize-none"
                             placeholder="Add semantic meaning..."
                         />
@@ -170,7 +174,11 @@ const DraggableField: React.FC<DraggableFieldProps> = ({
                         <label className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">Data Type</label>
                         <select
                             value={metadata?.dataType || 'dimension'}
-                            onChange={(e) => onMetadataChange({ dataType: e.target.value as SemanticDataType })}
+                            onChange={(e) => {
+                                const newType = e.target.value as SemanticDataType;
+                                onMetadataChange({ dataType: newType });
+                                toast.success(`Data type set to ${newType}`);
+                            }}
                             className="w-full text-[11px] bg-background border border-border p-1.5 focus:border-primary focus:outline-none uppercase font-bold"
                         >
                             <option value="dimension">Dimension (Categorical)</option>
@@ -180,6 +188,20 @@ const DraggableField: React.FC<DraggableFieldProps> = ({
                             <option value="text">Text (Description)</option>
                             <option value="boolean">Boolean (True/False)</option>
                         </select>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                        <button
+                            onClick={() => setShowSettings(false)}
+                            className="px-2 py-1 text-[10px] font-bold uppercase text-muted-foreground hover:text-foreground"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleSaveMetadata}
+                            className="px-3 py-1 bg-primary text-black text-[10px] font-black uppercase border border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0_0_rgba(0,0,0,1)] transition-all"
+                        >
+                            Save Settings
+                        </button>
                     </div>
                 </div>
             )}
