@@ -1,10 +1,15 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Editor, OnMount } from '@monaco-editor/react';
-import { Play, AlignLeft, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { Play, AlignLeft, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, ChevronUp, Minimize2, Maximize2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'sql-formatter';
 import { DataRow } from '../../types';
 import { executeQuery } from '../../services/database';
+
+interface TableSchema {
+    name: string;
+    fields: string[];
+}
 
 interface SQLPanelProps {
     sqlQuery: string;
@@ -13,6 +18,7 @@ interface SQLPanelProps {
     isExecuting: boolean;
     onRowSelect?: (row: DataRow | null, columns: string[]) => void;
     onOpenRowViewer?: () => void;
+    tables?: TableSchema[];
 }
 
 const ROWS_PER_PAGE = 50;
@@ -23,7 +29,8 @@ const SQLPanel: React.FC<SQLPanelProps> = ({
     onExecute,
     isExecuting,
     onRowSelect,
-    onOpenRowViewer
+    onOpenRowViewer,
+    tables = []
 }) => {
     const [queryResults, setQueryResults] = useState<DataRow[] | null>(null);
     const [executionError, setExecutionError] = useState<string | null>(null);
@@ -34,7 +41,81 @@ const SQLPanel: React.FC<SQLPanelProps> = ({
     const [dividerPosition, setDividerPosition] = useState<number>(40); // percentage for editor height
     const [isDragging, setIsDragging] = useState<boolean>(false);
     const [isResultsCollapsed, setIsResultsCollapsed] = useState<boolean>(false);
+    const [isColumnsExpanded, setIsColumnsExpanded] = useState<boolean>(true); // true = show column names, false = use *
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // Build a map of table names to their columns for quick lookup
+    const tableSchemaMap = useMemo(() => {
+        const map: { [key: string]: string[] } = {};
+        tables.forEach(t => {
+            map[t.name.toLowerCase()] = t.fields;
+        });
+        return map;
+    }, [tables]);
+
+    // Toggle between SELECT * and expanded column names
+    const handleToggleColumns = () => {
+        const newExpanded = !isColumnsExpanded;
+        setIsColumnsExpanded(newExpanded);
+
+        if (newExpanded) {
+            // Expand: Replace SELECT * FROM table with SELECT col1, col2, ... FROM table
+            let newQuery = sqlQuery;
+            const starPattern = /SELECT\s+\*\s+FROM\s+["']?(\w+)["']?/gi;
+            let match;
+            while ((match = starPattern.exec(sqlQuery)) !== null) {
+                const tableName = match[1].toLowerCase();
+                const columns = tableSchemaMap[tableName];
+                if (columns && columns.length > 0) {
+                    const columnList = columns.join(', ');
+                    const replacement = `SELECT ${columnList} FROM ${match[1]}`;
+                    newQuery = newQuery.replace(match[0], replacement);
+                }
+            }
+            onQueryChange(newQuery);
+        } else {
+            // Collapse: Replace SELECT col1, col2, ... FROM table with SELECT * FROM table
+            // Only if ALL columns of the table are selected
+            let newQuery = sqlQuery;
+
+            // Match SELECT ... FROM table patterns
+            const selectPattern = /SELECT\s+([\s\S]*?)\s+FROM\s+["']?(\w+)["']?/gi;
+            let match;
+            const replacements: { original: string; replacement: string }[] = [];
+
+            while ((match = selectPattern.exec(sqlQuery)) !== null) {
+                const columnsPart = match[1].trim();
+                const tableName = match[2].toLowerCase();
+                const tableColumns = tableSchemaMap[tableName];
+
+                if (tableColumns && columnsPart !== '*') {
+                    // Parse the columns in the SELECT
+                    const selectedCols = columnsPart
+                        .split(',')
+                        .map(c => c.trim().toLowerCase())
+                        .filter(c => c.length > 0);
+
+                    // Check if all table columns are selected (order doesn't matter)
+                    const allSelected = tableColumns.length === selectedCols.length &&
+                        tableColumns.every(tc => selectedCols.includes(tc.toLowerCase()));
+
+                    if (allSelected) {
+                        replacements.push({
+                            original: match[0],
+                            replacement: `SELECT * FROM ${match[2]}`
+                        });
+                    }
+                }
+            }
+
+            // Apply replacements
+            replacements.forEach(r => {
+                newQuery = newQuery.replace(r.original, r.replacement);
+            });
+
+            onQueryChange(newQuery);
+        }
+    };
 
     const totalPages = queryResults ? Math.ceil(queryResults.length / ROWS_PER_PAGE) : 0;
     const startRow = (currentPage - 1) * ROWS_PER_PAGE;
@@ -179,6 +260,18 @@ const SQLPanel: React.FC<SQLPanelProps> = ({
                     <span className="text-[10px] text-muted-foreground/50 ml-2">Ctrl+Enter to run</span>
                 </div>
                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleToggleColumns}
+                        className={`flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wide border-2 transition-all ${
+                            isColumnsExpanded
+                                ? 'bg-card text-muted-foreground border-border hover:border-primary hover:text-foreground'
+                                : 'bg-primary/20 text-primary border-primary'
+                        }`}
+                        title={isColumnsExpanded ? "Collapse to SELECT *" : "Expand to column names"}
+                    >
+                        {isColumnsExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                        <span>{isColumnsExpanded ? "Use *" : "Expand"}</span>
+                    </button>
                     <button
                         onClick={handleFormat}
                         className="flex items-center gap-2 px-3 py-1.5 bg-card text-muted-foreground text-xs font-bold uppercase tracking-wide border-2 border-border hover:border-primary hover:text-foreground transition-all"

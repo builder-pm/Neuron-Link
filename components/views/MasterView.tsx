@@ -501,6 +501,7 @@ export const MasterView: React.FC<MasterViewProps> = ({
                         isExecuting={isExecuting}
                         onRowSelect={handleRowSelect}
                         onOpenRowViewer={handleOpenRowViewer}
+                        tables={state.discoveredTables}
                     />
                 }
                 showContext={showContextPreview}
