@@ -1,7 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useDrop, useDrag } from 'react-dnd';
-import { ChevronDownIcon, PlusIcon, XIcon, MoveIcon, EyeIcon, EyeSlashIcon } from './icons';
+import { 
+    ChevronDownIcon, 
+    PlusIcon, 
+    XIcon, 
+    MoveIcon, 
+    EyeIcon, 
+    EyeSlashIcon,
+    WandIcon,
+    CalculatorIcon,
+    FolderIcon,
+    CalendarIcon,
+    KeyIcon
+} from './icons';
 import { FieldGroups, ItemTypes, FieldAliases } from '../types';
 
 interface FieldGroupingPanelProps {
@@ -219,7 +231,8 @@ const FieldGroupingPanel: React.FC<FieldGroupingPanelProps> = ({
     allFields
 }) => {
     const [newGroupName, setNewGroupName] = useState('');
-    const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+    const [showTemplates, setShowTemplates] = useState(false);
+    const templateMenuRef = useRef<HTMLDivElement>(null);
 
     const updateGroups = (newGroups: FieldGroups) => {
         if (onGroupsChange) {
@@ -228,6 +241,17 @@ const FieldGroupingPanel: React.FC<FieldGroupingPanelProps> = ({
             setGroups(newGroups);
         }
     };
+
+    // Close template menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (templateMenuRef.current && !templateMenuRef.current.contains(event.target as Node)) {
+                setShowTemplates(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const handleFieldDrop = (targetGroup: string, fieldName: string, sourceGroup: string, sourceIndex: number) => {
         const newGroups = { ...groups };
@@ -286,23 +310,14 @@ const FieldGroupingPanel: React.FC<FieldGroupingPanelProps> = ({
         updateGroups(newGroups);
 
         toast.success(`${templateName}: ${matchingFields.length} fields added`);
+        setShowTemplates(false);
     };
 
     const handleAddGroup = () => {
-        const groupName = selectedTemplate || newGroupName.trim();
+        if (!newGroupName.trim() || groups[newGroupName.trim()]) return;
 
-        if (!groupName || groups[groupName]) return; // Skip if exists
-
-        if (selectedTemplate) {
-            // Apply template
-            applyTemplate(selectedTemplate);
-            setSelectedTemplate('');
-        } else {
-            // Create empty custom group
-            const newGroups = { ...groups, [groupName]: [] };
-            updateGroups(newGroups);
-        }
-
+        const newGroups = { ...groups, [newGroupName.trim()]: [] };
+        updateGroups(newGroups);
         setNewGroupName('');
     };
 
@@ -323,50 +338,70 @@ const FieldGroupingPanel: React.FC<FieldGroupingPanelProps> = ({
         finalGroups['Uncategorized'] = uncategorizedFields;
     }
 
+    const templates = [
+        { name: 'Dimensions', icon: <FolderIcon className="h-4 w-4" /> },
+        { name: 'Measures', icon: <CalculatorIcon className="h-4 w-4" /> },
+        { name: 'Dates', icon: <CalendarIcon className="h-4 w-4" /> },
+        { name: 'Identifiers', icon: <KeyIcon className="h-4 w-4" /> },
+    ];
+
     return (
         <div className="w-full h-full flex flex-col bg-card">
             <div className="flex-1 overflow-y-auto scrollbar-thin">
                 <div className="p-4 border-b-2 border-border bg-card">
-                    <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">Configure Field Groups</h3>
+                    <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Field Groups</h3>
 
-                    {/* Template Selection */}
-                    <div className="flex space-x-2 mt-2">
-                        <select
-                            value={selectedTemplate}
-                            onChange={(e) => setSelectedTemplate(e.target.value)}
-                            className="brutal-input text-sm"
-                        >
-                            <option value="">Custom Group</option>
-                            <option value="Dimensions">📊 Dimensions</option>
-                            <option value="Measures">📈 Measures</option>
-                            <option value="Dates">📅 Dates</option>
-                            <option value="Identifiers">🔑 Identifiers</option>
-                        </select>
+                    <div className="flex items-center gap-2 relative">
+                        {/* Template Trigger */}
+                        <div className="relative" ref={templateMenuRef}>
+                            <button
+                                onClick={() => setShowTemplates(!showTemplates)}
+                                className={`p-2 border-2 border-border transition-all hover:shadow-brutal ${showTemplates ? 'bg-primary text-black' : 'bg-card text-muted-foreground hover:text-primary'}`}
+                                title="Auto-populate from templates"
+                            >
+                                <WandIcon className="h-4 w-4" />
+                            </button>
 
-                        <input
-                            type="text"
-                            value={newGroupName}
-                            onChange={(e) => setNewGroupName(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && handleAddGroup()}
-                            placeholder={selectedTemplate ? `Group: ${selectedTemplate}` : "New group name..."}
-                            className="brutal-input w-full text-sm"
-                            disabled={!!selectedTemplate}
-                        />
+                            {showTemplates && (
+                                <div className="absolute top-full left-0 mt-2 w-48 bg-card border-2 border-border shadow-brutal z-50 animate-in fade-in slide-in-from-top-2">
+                                    <div className="p-2 border-b border-border bg-muted/30">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Apply Template</span>
+                                    </div>
+                                    <div className="py-1">
+                                        {templates.map((t) => (
+                                            <button
+                                                key={t.name}
+                                                onClick={() => applyTemplate(t.name)}
+                                                className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold hover:bg-primary hover:text-black transition-colors"
+                                            >
+                                                <span className="opacity-70">{t.icon}</span>
+                                                <span>{t.name}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
 
-                        <button
-                            onClick={handleAddGroup}
-                            className="p-2 bg-primary text-primary-foreground border-2 border-border hover:shadow-brutal transition-all"
-                            title={selectedTemplate ? `Create ${selectedTemplate} group` : "Create custom group"}
-                        >
-                            <PlusIcon className="h-4 w-4" />
-                        </button>
+                        {/* Group Input */}
+                        <div className="flex-1 flex gap-2">
+                            <input
+                                type="text"
+                                value={newGroupName}
+                                onChange={(e) => setNewGroupName(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handleAddGroup()}
+                                placeholder="New group name..."
+                                className="brutal-input flex-1 text-sm bg-background h-9"
+                            />
+                            <button
+                                onClick={handleAddGroup}
+                                className="px-3 bg-primary text-black border-2 border-border hover:shadow-brutal transition-all flex items-center justify-center"
+                                title="Create custom group"
+                            >
+                                <PlusIcon className="h-4 w-4" />
+                            </button>
+                        </div>
                     </div>
-
-                    {selectedTemplate && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                            Will auto-populate with fields matching "{selectedTemplate}" pattern
-                        </p>
-                    )}
                 </div>
 
                 <div className="text-foreground">
