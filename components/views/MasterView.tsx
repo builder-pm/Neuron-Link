@@ -457,13 +457,9 @@ export const MasterView: React.FC<MasterViewProps> = ({
         setSelectedRowColumns(columns);
     };
 
-    const handleToggleRowViewer = () => {
-        setIsRowViewerActive(!isRowViewerActive);
-        if (isRowViewerActive) {
-            // Closing row viewer, clear selection
-            setSelectedRow(null);
-            setSelectedRowColumns([]);
-        }
+    // Open row viewer (called on double-click)
+    const handleOpenRowViewer = () => {
+        setIsRowViewerActive(true);
     };
 
     const handleCloseRowViewer = () => {
@@ -471,6 +467,13 @@ export const MasterView: React.FC<MasterViewProps> = ({
         setSelectedRow(null);
         setSelectedRowColumns([]);
     };
+
+    // Auto-close row viewer when SQL panel closes
+    useEffect(() => {
+        if (!showSqlEditor && isRowViewerActive) {
+            handleCloseRowViewer();
+        }
+    }, [showSqlEditor]);
 
     const tablesForCanvas = useMemo(() => {
         return state.discoveredTables
@@ -497,8 +500,7 @@ export const MasterView: React.FC<MasterViewProps> = ({
                         onExecute={handleExecuteQuery}
                         isExecuting={isExecuting}
                         onRowSelect={handleRowSelect}
-                        isRowViewerActive={isRowViewerActive}
-                        onToggleRowViewer={handleToggleRowViewer}
+                        onOpenRowViewer={handleOpenRowViewer}
                     />
                 }
                 showContext={showContextPreview}

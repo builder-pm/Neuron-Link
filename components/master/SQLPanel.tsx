@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Editor, OnMount } from '@monaco-editor/react';
-import { Play, AlignLeft, PanelRightOpen, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { Play, AlignLeft, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, ChevronUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'sql-formatter';
 import { DataRow } from '../../types';
@@ -12,8 +12,7 @@ interface SQLPanelProps {
     onExecute: () => void;
     isExecuting: boolean;
     onRowSelect?: (row: DataRow | null, columns: string[]) => void;
-    isRowViewerActive?: boolean;
-    onToggleRowViewer?: () => void;
+    onOpenRowViewer?: () => void;
 }
 
 const ROWS_PER_PAGE = 50;
@@ -24,8 +23,7 @@ const SQLPanel: React.FC<SQLPanelProps> = ({
     onExecute,
     isExecuting,
     onRowSelect,
-    isRowViewerActive = false,
-    onToggleRowViewer
+    onOpenRowViewer
 }) => {
     const [queryResults, setQueryResults] = useState<DataRow[] | null>(null);
     const [executionError, setExecutionError] = useState<string | null>(null);
@@ -107,16 +105,23 @@ const SQLPanel: React.FC<SQLPanelProps> = ({
         }
     }, [handleExecute, editorRef]);
 
-    const handleRowClick = (row: DataRow, index: number) => {
+    // Single click: just select/highlight the row visually
+    const handleRowClick = (index: number) => {
         const actualIndex = startRow + index;
         if (selectedRowIndex === actualIndex) {
             setSelectedRowIndex(null);
-            onRowSelect?.(null, []);
         } else {
             setSelectedRowIndex(actualIndex);
-            const columns = queryResults ? Object.keys(queryResults[0]) : [];
-            onRowSelect?.(row, columns);
         }
+    };
+
+    // Double click: select row AND open row viewer
+    const handleRowDoubleClick = (row: DataRow, index: number) => {
+        const actualIndex = startRow + index;
+        setSelectedRowIndex(actualIndex);
+        const columns = queryResults ? Object.keys(queryResults[0]) : [];
+        onRowSelect?.(row, columns);
+        onOpenRowViewer?.();
     };
 
     const goToPage = (page: number) => {
@@ -174,20 +179,6 @@ const SQLPanel: React.FC<SQLPanelProps> = ({
                     <span className="text-[10px] text-muted-foreground/50 ml-2">Ctrl+Enter to run</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    {onToggleRowViewer && (
-                        <button
-                            onClick={onToggleRowViewer}
-                            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wide border-2 transition-all ${
-                                isRowViewerActive
-                                    ? 'bg-primary text-primary-foreground border-primary'
-                                    : 'bg-card text-muted-foreground border-border hover:border-primary hover:text-foreground'
-                            }`}
-                            title="View selected row details in side panel"
-                        >
-                            <PanelRightOpen size={14} />
-                            <span>Row View</span>
-                        </button>
-                    )}
                     <button
                         onClick={handleFormat}
                         className="flex items-center gap-2 px-3 py-1.5 bg-card text-muted-foreground text-xs font-bold uppercase tracking-wide border-2 border-border hover:border-primary hover:text-foreground transition-all"
@@ -285,7 +276,9 @@ const SQLPanel: React.FC<SQLPanelProps> = ({
                                                 return (
                                                     <tr
                                                         key={actualIndex}
-                                                        onClick={() => handleRowClick(row, i)}
+                                                        onClick={() => handleRowClick(i)}
+                                                        onDoubleClick={() => handleRowDoubleClick(row, i)}
+                                                        title="Double-click to view row details"
                                                         className={`cursor-pointer transition-colors ${
                                                             isSelected
                                                                 ? 'bg-primary/20 hover:bg-primary/30'
