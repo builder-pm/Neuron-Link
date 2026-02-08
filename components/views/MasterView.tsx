@@ -3,6 +3,7 @@ import DataModelCanvas from '../DataModelCanvas';
 import SQLPanel from '../master/SQLPanel';
 import MetricsPanel from '../master/MetricsPanel';
 import StructurePanel from '../master/StructurePanel';
+import FieldGroupingPanel from '../FieldGroupingPanel';
 import GlobalFiltersPanel from '../master/GlobalFiltersPanel';
 import ContextPanel from '../master/ContextPanel';
 import { AppState, DataRow, DatabaseType } from '../../types';
@@ -244,14 +245,13 @@ const FixedRightPanel = ({ state, dispatch, onPreviewTable, previewData, onClear
     isRowViewerActive?: boolean,
     onCloseRowViewer?: () => void
 }) => {
-    const [activeTab, setActiveTab] = useState<'tables' | 'preview'>('tables');
+    const [activeTab, setActiveTab] = useState<'structure' | 'preview' | 'metrics'>('structure');
 
-    // Auto-switch to preview tab when data arrives
-    useEffect(() => {
-        if (previewData) {
-            setActiveTab('preview');
-        }
-    }, [previewData]);
+    const allFields = useMemo(() => {
+        return Object.entries(state.modelConfiguration).flatMap(([tableName, fields]) =>
+            fields.map(field => `${tableName}.${field}`)
+        );
+    }, [state.modelConfiguration]);
 
     // Show Row Viewer when active and row is selected
     if (isRowViewerActive && selectedRow && selectedRowColumns && selectedRowColumns.length > 0) {
@@ -271,22 +271,31 @@ const FixedRightPanel = ({ state, dispatch, onPreviewTable, previewData, onClear
             {/* Tabs */}
             <div className="flex border-b border-border">
                 <button
-                    onClick={() => setActiveTab('tables')}
-                    className={`flex-1 py-3 text-sm font-bold uppercase tracking-wider ${activeTab === 'tables' ? 'bg-muted/50 text-foreground border-b-2 border-primary' : 'text-muted-foreground hover:bg-muted/20'}`}
+                    onClick={() => setActiveTab('structure')}
+                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest flex flex-col items-center gap-1 ${activeTab === 'structure' ? 'bg-muted/50 text-primary border-b-2 border-primary' : 'text-muted-foreground hover:bg-muted/20'}`}
                 >
-                    Tables
+                    <SettingsIcon className="h-4 w-4" />
+                    <span>Structure</span>
                 </button>
                 <button
                     onClick={() => setActiveTab('preview')}
-                    className={`flex-1 py-3 text-sm font-bold uppercase tracking-wider ${activeTab === 'preview' ? 'bg-muted/50 text-foreground border-b-2 border-primary' : 'text-muted-foreground hover:bg-muted/20'}`}
+                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest flex flex-col items-center gap-1 ${activeTab === 'preview' ? 'bg-muted/50 text-primary border-b-2 border-primary' : 'text-muted-foreground hover:bg-muted/20'}`}
                 >
-                    Preview
+                    <EyeIcon className="h-4 w-4" />
+                    <span>Preview</span>
+                </button>
+                <button
+                    onClick={() => setActiveTab('metrics')}
+                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest flex flex-col items-center gap-1 ${activeTab === 'metrics' ? 'bg-muted/50 text-primary border-b-2 border-primary' : 'text-muted-foreground hover:bg-muted/20'}`}
+                >
+                    <div className="h-4 w-4 flex items-center justify-center font-bold">#</div>
+                    <span>Metrics</span>
                 </button>
             </div>
 
             {/* Content */}
             <div className="flex-1 overflow-hidden bg-background">
-                {activeTab === 'tables' ? (
+                {activeTab === 'structure' && (
                     <div className="h-full overflow-y-auto custom-scrollbar">
                         <StructurePanel
                             state={state}
@@ -294,71 +303,22 @@ const FixedRightPanel = ({ state, dispatch, onPreviewTable, previewData, onClear
                             onPreviewTable={onPreviewTable}
                         />
                     </div>
-                ) : (
-                    <div className="h-full flex flex-col">
-                        <div className="p-2 border-b border-border bg-muted/20 flex justify-between items-center">
-                            <h3 className="text-xs font-bold text-muted-foreground uppercase">
-                                {previewData ? `Preview: ${previewData.name}` : 'Output Preview'}
-                            </h3>
-                            <div className="flex items-center gap-2">
-                                {previewData && (
-                                    <>
-                                        <span className="text-[10px] text-muted-foreground">{previewData.data.length} rows</span>
-                                        {onClearPreview && (
-                                            <button
-                                                onClick={onClearPreview}
-                                                className="text-muted-foreground hover:text-foreground transition-colors"
-                                                title="Clear Preview"
-                                            >
-                                                <XIcon className="h-3 w-3" />
-                                            </button>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="flex-1 overflow-auto custom-scrollbar p-2">
-                            {previewData && previewData.data.length > 0 ? (
-                                <div className="border border-border rounded-md overflow-hidden">
-                                    <table className="w-full text-xs text-left">
-                                        <thead className="bg-muted text-muted-foreground font-medium sticky top-0 z-10">
-                                            <tr>
-                                                {Object.keys(previewData.data[0]).map(key => (
-                                                    <th key={key} className="px-2 py-1.5 border-b border-border whitespace-nowrap font-mono uppercase tracking-widest text-[9px]">{key}</th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-border">
-                                            {previewData.data.slice(0, 50).map((row, idx) => (
-                                                <tr key={idx} className="hover:bg-muted/30">
-                                                    {Object.values(row).map((val: any, i) => (
-                                                        <td key={i} className="px-2 py-1 border-r border-border/50 last:border-0 whitespace-nowrap overflow-hidden max-w-[150px] truncate font-mono text-[10px]">
-                                                            {val === null ? <span className="text-muted-foreground/50 italic">null</span> : String(val)}
-                                                        </td>
-                                                    ))}
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                    {previewData.data.length > 50 && (
-                                        <div className="p-2 text-center text-[10px] text-muted-foreground bg-muted/20 uppercase font-bold tracking-widest font-mono border-t border-border">
-                                            Showing first 50 rows
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="space-y-2 p-4 mt-10">
-                                    <div className="p-3 border border-border rounded bg-muted/10 text-center">
-                                        <div className="text-xs text-muted-foreground uppercase font-bold tracking-widest font-mono">
-                                            {previewData ? "Table is empty." : (
-                                                <>Select a table eye icon <EyeIcon className="h-3 w-3 inline" /> to preview data here.</>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                )}
+                {activeTab === 'preview' && (
+                    <div className="h-full overflow-hidden flex flex-col">
+                        <FieldGroupingPanel
+                            groups={state.fieldGroups}
+                            allFields={allFields}
+                            onGroupsChange={(newGroups) => dispatch({ type: ActionType.SET_FIELD_GROUPS, payload: newGroups })}
+                        />
+                    </div>
+                )}
+                {activeTab === 'metrics' && (
+                    <div className="h-full overflow-y-auto custom-scrollbar">
+                        <MetricsPanel
+                            state={state}
+                            dispatch={dispatch}
+                        />
                     </div>
                 )}
             </div>
