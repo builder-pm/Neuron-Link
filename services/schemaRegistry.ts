@@ -181,3 +181,41 @@ export async function syncSchemaRegistry(credentials: SupabaseCredentials): Prom
     driftDetected
   };
 }
+
+/**
+ * Updates a table description in the schema registry.
+ */
+export async function updateTableDescription(
+  dbUrlHash: string,
+  tableName: string,
+  newDescription: string
+): Promise<void> {
+  // 1. Fetch current registry
+  const { data: existingEntry, error: fetchError } = await appSupabase
+    .from('schema_registry')
+    .select('*')
+    .eq('db_url_hash', dbUrlHash)
+    .single();
+
+  if (fetchError) {
+    throw new Error(`Failed to fetch schema registry: ${fetchError.message}`);
+  }
+
+  const tables: RegisteredTable[] = existingEntry.tables_data;
+  const updatedTables = tables.map(t => 
+    t.name === tableName ? { ...t, description: newDescription } : t
+  );
+
+  // 2. Update in App Database
+  const { error: updateError } = await appSupabase
+    .from('schema_registry')
+    .update({ 
+      tables_data: updatedTables,
+      last_synced_at: new Date().toISOString()
+    })
+    .eq('db_url_hash', dbUrlHash);
+
+  if (updateError) {
+    throw new Error(`Failed to update table description: ${updateError.message}`);
+  }
+}
