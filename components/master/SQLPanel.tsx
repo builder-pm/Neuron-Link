@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Editor, OnMount } from '@monaco-editor/react';
 import { Play, AlignLeft, Rows3, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -33,6 +33,9 @@ const SQLPanel: React.FC<SQLPanelProps> = ({
     const [currentPage, setCurrentPage] = useState<number>(1);
     const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
     const [editorRef, setEditorRef] = useState<any>(null);
+    const [dividerPosition, setDividerPosition] = useState<number>(40); // percentage for editor height
+    const [isDragging, setIsDragging] = useState<boolean>(false);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const totalPages = queryResults ? Math.ceil(queryResults.length / ROWS_PER_PAGE) : 0;
     const startRow = (currentPage - 1) * ROWS_PER_PAGE;
@@ -123,6 +126,44 @@ const SQLPanel: React.FC<SQLPanelProps> = ({
         }
     };
 
+    // Divider drag handlers
+    const handleDividerMouseDown = (e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isDragging || !containerRef.current) return;
+
+            const container = containerRef.current;
+            const rect = container.getBoundingClientRect();
+            const mouseY = e.clientY - rect.top;
+            const percentage = (mouseY / rect.height) * 100;
+
+            // Constrain between 20% and 80%
+            const constrained = Math.min(Math.max(percentage, 20), 80);
+            setDividerPosition(constrained);
+        };
+
+        const handleMouseUp = () => {
+            setIsDragging(false);
+        };
+
+        if (isDragging) {
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+            // Prevent text selection during drag
+            document.body.style.userSelect = 'none';
+        }
+
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.userSelect = '';
+        };
+    }, [isDragging]);
+
     return (
         <div className="flex flex-col h-full bg-background">
             {/* Toolbar */}
@@ -167,9 +208,9 @@ const SQLPanel: React.FC<SQLPanelProps> = ({
             </div>
 
             {/* Editor Section - Takes remaining height */}
-            <div className="flex-1 min-h-0 flex flex-col">
-                {/* Monaco Editor - 40% of available space */}
-                <div className="h-[40%] min-h-[150px] border-b-2 border-border">
+            <div ref={containerRef} className="flex-1 min-h-0 flex flex-col">
+                {/* Monaco Editor - Dynamic height based on divider */}
+                <div style={{ height: `${dividerPosition}%`, minHeight: '150px' }}>
                     <Editor
                         height="100%"
                         language="sql"
@@ -190,8 +231,17 @@ const SQLPanel: React.FC<SQLPanelProps> = ({
                     />
                 </div>
 
-                {/* Results Section - 60% of available space */}
-                <div className="flex-1 min-h-0 flex flex-col bg-background">
+                {/* Resizable Divider */}
+                <div
+                    onMouseDown={handleDividerMouseDown}
+                    className={`h-1.5 bg-border hover:bg-primary/50 cursor-ns-resize relative transition-colors flex items-center justify-center ${isDragging ? 'bg-primary' : ''}`}
+                    title="Drag to resize"
+                >
+                    <div className="w-12 h-0.5 bg-muted-foreground/30 rounded-full" />
+                </div>
+
+                {/* Results Section - Dynamic height based on divider */}
+                <div style={{ height: `${100 - dividerPosition}%` }} className="min-h-0 flex flex-col bg-background">
                     {isExecutingQuery ? (
                         <div className="flex-1 flex items-center justify-center">
                             <div className="text-muted-foreground text-center animate-pulse">
