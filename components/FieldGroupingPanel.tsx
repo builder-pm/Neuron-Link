@@ -5,7 +5,8 @@ import { FieldGroups, ItemTypes } from '../types';
 
 interface FieldGroupingPanelProps {
     groups: FieldGroups;
-    setGroups: React.Dispatch<React.SetStateAction<FieldGroups>>;
+    setGroups?: React.Dispatch<React.SetStateAction<FieldGroups>>;
+    onGroupsChange?: (newGroups: FieldGroups) => void;
     allFields: string[];
 }
 
@@ -75,49 +76,55 @@ const GroupDropZone: React.FC<DraggableGroupProps> = ({ groupName, fields, onFie
 }
 
 
-const FieldGroupingPanel: React.FC<FieldGroupingPanelProps> = ({ groups, setGroups, allFields }) => {
+const FieldGroupingPanel: React.FC<FieldGroupingPanelProps> = ({ groups, setGroups, onGroupsChange, allFields }) => {
     const [newGroupName, setNewGroupName] = useState('');
 
+    const updateGroups = (newGroups: FieldGroups) => {
+        if (onGroupsChange) {
+            onGroupsChange(newGroups);
+        } else if (setGroups) {
+            setGroups(newGroups);
+        }
+    };
+
     const handleFieldDrop = (targetGroup: string, fieldName: string) => {
-        setGroups(prev => {
-            const newGroups = { ...prev };
-            Object.keys(newGroups).forEach(g => {
-                newGroups[g] = newGroups[g].filter(f => f !== fieldName);
-            });
-            if (!newGroups[targetGroup]) newGroups[targetGroup] = [];
-            if (!newGroups[targetGroup].includes(fieldName)) {
-                newGroups[targetGroup].push(fieldName);
-            }
-            return newGroups;
+        const newGroups = { ...groups };
+        Object.keys(newGroups).forEach(g => {
+            newGroups[g] = (newGroups[g] || []).filter(f => f !== fieldName);
         });
+        if (!newGroups[targetGroup]) newGroups[targetGroup] = [];
+        if (!newGroups[targetGroup].includes(fieldName)) {
+            newGroups[targetGroup].push(fieldName);
+        }
+        updateGroups(newGroups);
     };
 
     const handleRemoveField = (groupName: string, fieldName: string) => {
-        setGroups(prev => {
-            const newGroups = { ...prev };
-            newGroups[groupName] = newGroups[groupName].filter(f => f !== fieldName);
-            if (!newGroups['Uncategorized']) newGroups['Uncategorized'] = [];
+        const newGroups = { ...groups };
+        newGroups[groupName] = (newGroups[groupName] || []).filter(f => f !== fieldName);
+        if (!newGroups['Uncategorized']) newGroups['Uncategorized'] = [];
+        if (!newGroups['Uncategorized'].includes(fieldName)) {
             newGroups['Uncategorized'].push(fieldName);
-            return newGroups;
-        })
+        }
+        updateGroups(newGroups);
     }
 
     const handleAddGroup = () => {
-        if (newGroupName.trim() && !groups[newGroupName.trim()]) {
-            setGroups(prev => ({ ...prev, [newGroupName.trim()]: [] }));
+        const trimmedName = newGroupName.trim();
+        if (trimmedName && !groups[trimmedName]) {
+            const newGroups = { ...groups, [trimmedName]: [] };
+            updateGroups(newGroups);
             setNewGroupName('');
         }
     }
 
     const handleRemoveGroup = (groupName: string) => {
-        setGroups(prev => {
-            const newGroups = { ...prev };
-            const fieldsToMove = newGroups[groupName] || [];
-            delete newGroups[groupName];
-            if (!newGroups['Uncategorized']) newGroups['Uncategorized'] = [];
-            newGroups['Uncategorized'] = [...newGroups['Uncategorized'], ...fieldsToMove];
-            return newGroups;
-        });
+        const newGroups = { ...groups };
+        const fieldsToMove = newGroups[groupName] || [];
+        delete newGroups[groupName];
+        if (!newGroups['Uncategorized']) newGroups['Uncategorized'] = [];
+        newGroups['Uncategorized'] = [...new Set([...newGroups['Uncategorized'], ...fieldsToMove])];
+        updateGroups(newGroups);
     }
 
     const uncategorizedFields = allFields.filter(field => !Object.values(groups).flat().includes(field));
