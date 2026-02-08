@@ -1,106 +1,233 @@
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import { ChatMessage, AIAction, DataRow } from '../types';
+import { ChatMessage, AIAction, DataRow, SemanticContext } from '../types';
 
-let ai: GoogleGenAI | null = null;
-try {
-    // Defensively check for `process` to avoid ReferenceError in browser environments.
-    // The execution environment is expected to provide this.
-    if(typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-        ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to get API Key (checks process.env and standard Vite env vars)
+
+const getApiKey = () => {
+  if (typeof process !== 'undefined' && process.env && process.env.OPENROUTER_API_KEY) {
+    return process.env.OPENROUTER_API_KEY;
+  }
+  // @ts-ignore
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_OPENROUTER_API_KEY) {
+    // @ts-ignore
+    return import.meta.env.VITE_OPENROUTER_API_KEY;
+  }
+  // Fallback for local dev if user didn't prefix with VITE_ but we are in Vite
+  // @ts-ignore
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.OPENROUTER_API_KEY) {
+    // @ts-ignore
+    return import.meta.env.OPENROUTER_API_KEY;
+  }
+  return null;
+};
+
+const getModel = () => {
+  // @ts-ignore
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_OPENROUTER_MODEL) {
+    // @ts-ignore
+    return import.meta.env.VITE_OPENROUTER_MODEL;
+  }
+  return "z-ai/glm-4.5-air:free";
+}
+
+const OPENROUTER_API_KEY = getApiKey();
+const OPENROUTER_MODEL = getModel();
+const SITE_URL = 'http://localhost:5173'; // Default for local dev
+const SITE_NAME = 'NeuronLink Lakehouse';
+
+const BASE_SYSTEM_INSTRUCTION = `You are a helpful and expert AI assistant for "NeuronLink", a data lakehouse analysis platform.
+Your goal is to help a non-technical user understand and manipulate their data.
+
+You have two main modes of operation depending on the user's current context:
+1. **MODELING**: Use this when the user is setting up their Data Model (selecting tables/fields).
+2. **ANALYSIS**: Use this when the user is analyzing an existing Model (pivoting/filtering).
+
+**CRITICAL GOVERNANCE RULE**:
+You must ONLY speak about and suggest fields/tables that are explicitly listed in the "SEMANTIC CONTEXT" below.
+Do not hallucinate columns that do not exist in the context.
+If a user asks for a field not in the context, politely explain that it is not available in the current configuration.
+
+---
+
+### ACTION PROTOCOL
+
+You must respond with a JSON object containing a "command" and a "response".
+
+#### 1. MODELING MODE (Creating a Config)
+If the user asks to "analyze inventory" or "track sales", and no model is selected (or they want to change it):
+- Generate \`propose_model\` action.
+- Select relevant tables and fields from the 'Available Tables' context.
+- Infer natural joins based on foreign keys or naming conventions (e.g., customer_id).
+- JSON Format:
+  \`\`\`json
+  {
+      "command": {
+          "action": "propose_model",
+          "modelProposal": {
+              "modelConfiguration": { "table_name": ["field1", "field2"] },
+              "joins": [ { "from": "t1", "to": "t2", "type": "INNER JOIN", "on": { "from": "id", "to": "id" } } ]
+          }
+      },
+      "response": "I've drafted a model for analyzing [Scope]. Does this look right?"
+  }
+  \`\`\`
+
+#### 2. ANALYSIS MODE (Exploring Data)
+If the user is in Analysis View and asks to "pivot by...", "filter for...", or "count...":
+- **Pivot/Filter**:
+  - Map their natural language ONLY to the "Selected Model Fields".
+  - output \`propose_analysis\` (replaces old "pivot"/"filter").
+  - JSON Format:
+    \`\`\`json
+    {
+        "command": {
+            "action": "propose_analysis",
+            "analysisProposal": {
+                "pivotConfig": { "rows": ["..."], "columns": [], "values": [{"field": "...", "aggregation": "SUM"}] },
+                "filters": []
+            }
+        },
+        "response": "I've set up the view to show [description]."
     }
-} catch (e) {
-    console.error("Failed to initialize GoogleGenAI:", e);
-}
+    \`\`\`
+- **Ad-Hoc Query**:
+  - If they ask a specific question ("How many rentals from Canada?"):
+  - Generate a valid SQL query using ONLY "Selected Model Fields".
+  - JSON Format:
+     \`\`\`json
+    {
+        "command": { "action": "query", "query": "SELECT ..." },
+        "response": "Checking the database..."
+    }
+    \`\`\`
 
+#### 3. GENERAL CHAT
+- If no action is needed, return \`"command": null\`.
 
-const systemInstruction = `You are a helpful and expert AI assistant for a data analysis application called NeuronLink.
-Your goal is to help a non-technical user understand and manipulate a dataset.
-The available tables are 'jobs', 'countries', and 'sources'. Their schemas are implicitly defined by the available fields: [{availableFields}].
-
-When the user asks a question or gives a command, you must do two things:
-1.  First, determine if the user's request is a command to modify the data view (like pivoting or filtering), OR if it requires querying the database for an answer (e.g., "how many...").
-    -   If it's a pivot/filter command, generate a JSON object with "action": "pivot" or "action": "filter".
-        -   Example pivot: "show me total jobs by country name" -> \`{"action": "pivot", "config": {"rows": ["country_name"], "columns": [], "values": [{"field": "total_jobs", "aggregation": "SUM"}]}}\`
-        -   Example filter: "show me data for Canada" -> \`{"action": "filter", "config": {"field": "country_name", "operator": "equals", "value": "Canada"}}\`
-    -   If the request requires getting data from the database (e.g., "what is the most common language", "how many jobs from Nike?"), generate a JSON object with "action": "query" and a "query" key containing a valid SQLite query.
-        -   Example query: "how many jobs are from Nike?" -> \`{"action": "query", "query": "SELECT count(*) FROM jobs WHERE advertiser = 'Nike';"}\`
-        -   Example query: "what are the top 3 languages?" -> \`{"action": "query", "query": "SELECT language, count(*) as count FROM jobs GROUP BY language ORDER BY count DESC LIMIT 3;"}\`
-    -   If the request is a simple question that doesn't require a command (e.g., "what is this app?"), the "command" key should be null.
-
-2.  Second, you MUST provide a friendly, natural language text response to the user.
-    - If you generated a pivot/filter command, confirm what you did (e.g., "Sure, I've created a pivot table...").
-    - If you generated a query command, tell the user you are looking up the answer (e.g., "Let me check the database for you...").
-    - If there's no command, just provide the answer.
-
-The final response format MUST be a single JSON object like this:
-{
-  "command": <JSON object for the command (pivot, filter, or query), or null>,
-  "response": "<Your friendly text response to the user>"
-}
+---
 `;
 
+function generateSystemPrompt(context: SemanticContext): string {
+  const isModeling = context.view === 'modeling';
+
+  // Convert Model Config to YAML-like string for clarity
+  let semanticYaml = "SEMANTIC CONTEXT:\n";
+
+  if (isModeling) {
+    semanticYaml += `Available Tables (For Modeling):\n`;
+    // In a real app we'd list all found tables. 
+    // For now, we assume the AI knows the 'dvdrental' schema or we pass a schema summary.
+    // We will pass a reduced schema summary of commonly known tables for this demo.
+    semanticYaml += `
+          - actor (actor_id, first_name, last_name...)
+          - film (film_id, title, description, release_year, rental_rate, rating...)
+          - inventory (inventory_id, film_id, store_id)
+          - customer (customer_id, store_id, first_name, last_name, email, address_id...)
+          - rental (rental_id, rental_date, inventory_id, customer_id, staff_id...)
+          - payment (payment_id, customer_id, staff_id, rental_id, amount, payment_date)
+          - store (store_id, manager_staff_id, address_id...)
+          - address (address_id, address, district, city_id...)
+          - city (city_id, city, country_id)
+          - country (country_id, country)
+          - category (category_id, name)
+          - film_category (film_id, category_id)
+        \n`;
+  } else {
+    semanticYaml += `Selected Model Fields (RESTRICTED TO THESE ONLY):\n`;
+    Object.entries(context.modelConfiguration).forEach(([table, fields]) => {
+      semanticYaml += `  - ${table}: [${fields.join(', ')}]\n`;
+    });
+
+    semanticYaml += `\nExisting Joins:\n`;
+    context.joins.forEach(j => {
+      semanticYaml += `  - ${j.from} JOIN ${j.to} ON ${j.on.from} = ${j.on.to}\n`;
+    });
+  }
+
+  return `${BASE_SYSTEM_INSTRUCTION}\n\n${semanticYaml}`;
+}
 
 export async function getAIResponse(
   history: ChatMessage[],
   prompt: string,
-  availableFields: string[]
+  context: SemanticContext
 ): Promise<{ action: AIAction | null; textResponse: string }> {
-  
-  if (!ai) {
-      return {
-          action: null,
-          textResponse: "The AI Assistant has not been configured with an API key. Please add your API_KEY to the environment variables."
-      };
+
+  if (!OPENROUTER_API_KEY) {
+    console.warn("OpenRouter API Key missing. Please set OPENROUTER_API_KEY in .env.local");
+    return {
+      action: null,
+      textResponse: "AI Assistant configuration missing (API Key). Please check .env.local."
+    };
   }
 
-  const model = "gemini-2.5-flash-preview-04-17";
-  const fullSystemInstruction = systemInstruction.replace('{availableFields}', availableFields.join(', '));
-  
-  // Only use the last 6 messages to keep the context concise
-  const recentHistory = history.slice(-6);
-  const contents = recentHistory.map(msg => ({
-    role: msg.role,
-    parts: [{ text: msg.text }]
+  // Use a capable model available on OpenRouter
+  const model = OPENROUTER_MODEL;
+  const systemPrompt = generateSystemPrompt(context);
+
+  // Transform history to OpenAI format
+  const messages = history.slice(-6).map(msg => ({
+    role: msg.role === 'model' ? 'assistant' : msg.role,
+    content: msg.text
   }));
-  contents.push({ role: 'user', parts: [{ text: prompt }] });
+
+  // Prepend system prompt
+  messages.unshift({ role: 'system', content: systemPrompt } as any);
+
+  // Append current user prompt
+  messages.push({ role: 'user', content: prompt });
 
   try {
-    const response: GenerateContentResponse = await ai.models.generateContent({
-        model: model,
-        contents: contents,
-        config: {
-            systemInstruction: fullSystemInstruction,
-            responseMimeType: "application/json",
-            temperature: 0,
-        },
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "HTTP-Referer": SITE_URL, // Optional, for including your app on openrouter.ai rankings.
+        "X-Title": SITE_NAME, // Optional. Shows in rankings on openrouter.ai.
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        "model": model,
+        "messages": messages,
+        "response_format": { "type": "json_object" } // Enforce JSON
+      })
     });
 
-    let jsonStr = response.text.trim();
+    if (!response.ok) {
+      throw new Error(`OpenRouter API Error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || "";
+
+    let jsonStr = content.trim();
+    // Strip markdown fences if present
     const fenceRegex = /^```(\w*)?\s*\n?(.*?)\n?\s*```$/s;
     const match = jsonStr.match(fenceRegex);
-    if (match && match[2]) {
-      jsonStr = match[2].trim();
+    if (match && match[2]) jsonStr = match[2].trim();
+
+    let parsedData: any = {};
+    try {
+      parsedData = JSON.parse(jsonStr);
+    } catch (e) {
+      console.error("Failed to parse AI JSON:", jsonStr);
+      return { action: null, textResponse: "I couldn't process the AI response format." };
     }
-    
-    const parsedData = JSON.parse(jsonStr);
 
     const action = parsedData.command as AIAction | null;
-    const textResponse = parsedData.response || "I'm not sure how to respond to that. Please try again.";
+    const textResponse = parsedData.response || "No response text provided.";
 
     // Basic validation
     if (action && !action.action) {
-        console.error("Invalid action received from AI:", action);
-        return { action: null, textResponse: "I tried to perform an action, but the structure was invalid." };
+      return { action: null, textResponse: "I tried to act, but got confused (Invalid Action)." };
     }
 
     return { action, textResponse };
 
   } catch (e) {
-    console.error("Failed to parse or fetch AI response:", e);
-    // Fallback response for errors
+    console.error("AI Error:", e);
     return {
       action: null,
-      textResponse: "I'm having a little trouble thinking right now. Please try your request again in a moment."
+      textResponse: "I'm having trouble connecting to my brain (OpenRouter) right now. Try again?"
     };
   }
 }
@@ -110,19 +237,167 @@ export async function getAIResponseWithData(
   query: string,
   data: DataRow[]
 ): Promise<string> {
-    if (!ai) return "AI Assistant not configured.";
+  if (!OPENROUTER_API_KEY) return "AI Assistant not configured.";
 
-    const model = "gemini-2.5-flash-preview-04-17";
-    const summarizationPrompt = `The user asked: "${prompt}". You generated the SQL query: "${query}". The result of the query is this JSON: ${JSON.stringify(data)}. Based on this data, formulate a concise, natural language response to the user's original question.`;
-    
-    try {
-        const response = await ai.models.generateContent({
-            model,
-            contents: summarizationPrompt,
-        });
-        return response.text;
-    } catch(e) {
-        console.error("Failed to get summary from AI:", e);
-        return "I found some data, but had trouble summarizing it. The raw result is: " + JSON.stringify(data);
+  const model = OPENROUTER_MODEL;
+  const summarizationPrompt = `User Question: "${prompt}"\nSQL Context: "${query}"\nData Result: ${JSON.stringify(data.slice(0, 20))}\n\nTask: Give a concise natural language answer based on the data.`;
+
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "HTTP-Referer": SITE_URL,
+        "X-Title": SITE_NAME,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        "model": model,
+        "messages": [
+          { "role": "user", "content": summarizationPrompt }
+        ]
+      })
+    });
+
+    if (!response.ok) throw new Error("OpenRouter error");
+
+    const resData = await response.json();
+    return resData.choices?.[0]?.message?.content || "No summary available.";
+
+    } catch (e) {
+
+      return "Found data, but couldn't summarize it.";
+
     }
-}
+
+  }
+
+  
+
+  /**
+
+   * Generates concise, professional descriptions for a list of database tables.
+
+   */
+
+  export async function generateTableDescriptions(tableNames: string[]): Promise<Record<string, string>> {
+
+    if (!OPENROUTER_API_KEY || tableNames.length === 0) {
+
+      return tableNames.reduce((acc, name) => ({ ...acc, [name]: '' }), {});
+
+    }
+
+  
+
+    const model = OPENROUTER_MODEL;
+
+    const prompt = `Generate short, professional descriptions (max 1 sentence) for these database tables: ${tableNames.join(', ')}.
+
+  Return ONLY a JSON object where keys are table names and values are descriptions.
+
+  Example: { "users": "Stores user account information and authentication details." }`;
+
+  
+
+    try {
+
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+
+        method: "POST",
+
+        headers: {
+
+          "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+
+          "HTTP-Referer": SITE_URL,
+
+          "X-Title": SITE_NAME,
+
+          "Content-Type": "application/json"
+
+        },
+
+        body: JSON.stringify({
+
+          "model": model,
+
+          "messages": [
+
+            { "role": "system", "content": "You are a database architect who provides concise documentation." },
+
+            { "role": "user", "content": prompt }
+
+          ],
+
+          "response_format": { "type": "json_object" }
+
+        })
+
+      });
+
+  
+
+      if (!response.ok) throw new Error(`OpenRouter API Error: ${response.statusText}`);
+
+  
+
+      const data = await response.json();
+
+      let content = data.choices?.[0]?.message?.content || "{}";
+
+      
+
+      // Robust JSON parsing (strip fences if present)
+
+      content = content.trim();
+
+      if (content.startsWith('```')) {
+
+        content = content.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/\s*```$/, '');
+
+      }
+
+  
+
+      let descriptions: Record<string, string> = {};
+
+      try {
+
+        descriptions = JSON.parse(content);
+
+      } catch (e) {
+
+        console.error("Failed to parse table descriptions JSON:", content);
+
+      }
+
+  
+
+      // Ensure all requested tables have at least an empty string if AI missed some
+
+      const result: Record<string, string> = {};
+
+      tableNames.forEach(name => {
+
+        result[name] = descriptions[name] || '';
+
+      });
+
+  
+
+      return result;
+
+  
+
+    } catch (e) {
+
+      console.error("Failed to generate table descriptions:", e);
+
+      return tableNames.reduce((acc, name) => ({ ...acc, [name]: '' }), {});
+
+    }
+
+  }
+
+  
