@@ -9,7 +9,7 @@ import { AppState, DataRow, DatabaseType } from '../../types';
 import { AppAction, ActionType } from '../../state/actions';
 import { SettingsIcon, EyeIcon, RotateCcwIcon, XIcon, SqlIcon } from '../icons';
 import toast from 'react-hot-toast';
-import { X } from 'lucide-react';
+import { X, Search } from 'lucide-react';
 
 // 1. Central Area: New Structure with Header and Overlay Support
 interface CentralAreaProps {
@@ -127,6 +127,41 @@ const RowViewer = ({ row, columns, onClose }: {
     columns: string[];
     onClose: () => void;
 }) => {
+    const [searchQuery, setSearchQuery] = useState<string>('');
+
+    // Filter columns based on search query
+    const filteredColumns = useMemo(() => {
+        if (!searchQuery.trim()) return columns;
+
+        const query = searchQuery.toLowerCase();
+        return columns.filter(col => {
+            // Match column name
+            if (col.toLowerCase().includes(query)) return true;
+
+            // Match value (stringified)
+            const value = row[col];
+            const valueStr = value !== null && value !== undefined ? String(value).toLowerCase() : '';
+            return valueStr.includes(query);
+        });
+    }, [columns, row, searchQuery]);
+
+    // Keyboard shortcut: Ctrl/Cmd+F to focus search, Escape to clear
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                document.getElementById('row-viewer-search')?.focus();
+            }
+            if (e.key === 'Escape' && searchQuery) {
+                setSearchQuery('');
+                document.getElementById('row-viewer-search')?.blur();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [searchQuery]);
+
     return (
         <div className="flex flex-col h-full">
             <div className="h-12 border-b-2 border-primary bg-primary/10 flex items-center justify-between px-4 shrink-0">
@@ -139,20 +174,59 @@ const RowViewer = ({ row, columns, onClose }: {
                     <X size={16} />
                 </button>
             </div>
+
+            {/* Search Input */}
+            <div className="px-4 py-3 border-b border-border bg-background sticky top-0 z-10">
+                <div className="relative">
+                    <div className="absolute left-3 top-2.5 flex items-center pointer-events-none">
+                        <Search size={14} className="text-muted-foreground" />
+                    </div>
+                    <input
+                        id="row-viewer-search"
+                        type="text"
+                        placeholder="Search columns or values..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-8 py-2 text-xs bg-card border border-border focus:border-primary focus:outline-none font-mono transition-colors"
+                    />
+                    {searchQuery && (
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-2 top-2 p-1 text-muted-foreground hover:text-foreground transition-colors"
+                            title="Clear search"
+                        >
+                            <X size={14} />
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* Filtered Results */}
             <div className="flex-1 overflow-y-auto custom-scrollbar">
-                {columns.map((col) => (
-                    <div key={col} className="border-b border-border">
-                        <div className="px-4 py-2 bg-muted/30">
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">{col}</span>
+                {filteredColumns.length > 0 ? (
+                    filteredColumns.map((col) => (
+                        <div key={col} className="border-b border-border">
+                            <div className="px-4 py-2 bg-muted/30">
+                                <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">{col}</span>
+                            </div>
+                            <div className="px-4 py-3 font-mono text-sm text-foreground break-all">
+                                {row[col] !== null && row[col] !== undefined
+                                    ? String(row[col])
+                                    : <span className="text-muted-foreground italic">null</span>
+                                }
+                            </div>
                         </div>
-                        <div className="px-4 py-3 font-mono text-sm text-foreground break-all">
-                            {row[col] !== null && row[col] !== undefined
-                                ? String(row[col])
-                                : <span className="text-muted-foreground italic">null</span>
-                            }
+                    ))
+                ) : (
+                    <div className="flex items-center justify-center p-8">
+                        <div className="text-xs text-muted-foreground text-center font-mono">
+                            <div className="mb-2">No matches found</div>
+                            <div className="text-[10px] text-muted-foreground/60">
+                                Try a different search term
+                            </div>
                         </div>
                     </div>
-                ))}
+                )}
             </div>
         </div>
     );
