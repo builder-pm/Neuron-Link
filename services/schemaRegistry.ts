@@ -1,3 +1,4 @@
+import { createClient } from '@supabase/supabase-js';
 import { RegisteredTable, RegisteredColumn, SupabaseCredentials, SchemaRegistryEntry } from '../types';
 import { appSupabase } from './appSupabase';
 import * as gemini from './gemini';
@@ -39,35 +40,50 @@ const DVD_RENTAL_PK_FK: Record<string, { pk: string[], fk: Record<string, { tabl
 };
 
 /**
+ * Extracts schema information using a custom RPC function.
+ * This is more robust than OpenAPI as it bypasses permission issues and
+ * allows for direct system catalog queries for PK/FK.
+ */
+export async function extractSchemaViaRpc(url: string, anonKey: string): Promise<RegisteredTable[] | null> {
+  try {
+    const client = createClient(url, anonKey);
+    const { data, error } = await client.rpc('get_schema_metadata');
+
+    if (error) {
+      console.warn('RPC extraction failed:', error.message);
+      return null;
+    }
+
+    return (data as any[]).map(table => ({
+      name: table.name,
+      description: table.description?.trim() || '',
+      columns: table.columns.map((col: any) => ({
+        name: col.name,
+        type: col.type,
+        isPrimary: col.isPrimary,
+        description: col.description?.trim() || '',
+        semanticType: col.semanticType || undefined,
+        foreignKey: col.foreignKey ? {
+          table: col.foreignKey.table.replace('public.', '').replace(/"/g, ''),
+          column: col.foreignKey.column
+        } : undefined
+      }))
+    }));
+  } catch (e) {
+    console.error('Error in RPC extraction:', e);
+    return null;
+  }
+}
+
+/**
  * Extracts schema information from a PostgREST/Supabase OpenAPI endpoint.
  */
 export async function extractSchema(url: string, anonKey: string): Promise<RegisteredTable[]> {
   // 1. Try RPC method first (most reliable for metadata)
-  try {
-    const rpcUrl = `${url.replace(/\/$/, '')}/rest/v1/rpc/get_schema_metadata`;
-    const rpcResponse = await fetch(rpcUrl, {
-      method: 'POST',
-      headers: {
-        'apikey': anonKey,
-        'Authorization': `Bearer ${anonKey}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (rpcResponse.ok) {
-      const data = await rpcResponse.json();
-      if (Array.isArray(data)) {
-        return data.map((t: any) => ({
-          ...t,
-          columns: (t.columns || []).map((c: any) => ({
-            ...c,
-            isPrimary: c.name.toLowerCase().includes('id') // Basic heuristic for RPC fallback
-          }))
-        }));
-      }
-    }
-  } catch (rpcError) {
-    console.warn('RPC metadata extraction failed, falling back to OpenAPI:', rpcError);
+  const rpcData = await extractSchemaViaRpc(url, anonKey);
+  if (rpcData && rpcData.length > 0) {
+    console.log(`Schema Registry: Successfully extracted ${rpcData.length} tables via RPC.`);
+    return rpcData;
   }
 
   // 2. Fallback to OpenAPI spec
@@ -141,17 +157,93 @@ export async function extractSchema(url: string, anonKey: string): Promise<Regis
   }
 }
 
+const DVD_RENTAL_COLUMN_DESCRIPTIONS: Record<string, Record<string, string>> = {
+  'actor': {
+    'actor_id': 'Unique identifier for the actor.',
+    'first_name': 'First name of the actor.',
+    'last_name': 'Last name of the actor.',
+    'last_update': 'Timestamp of the last record update.'
+  },
+  'film': {
+    'film_id': 'Unique identifier for the film.',
+    'title': 'The title of the movie.',
+    'description': 'A short synopsis of the film plot.',
+    'release_year': 'The year the film was released.',
+    'language_id': 'Identifier for the original language of the film.',
+    'rental_duration': 'The length of the rental period in days.',
+    'rental_rate': 'The cost to rent the film.',
+    'length': 'The duration of the film in minutes.',
+    'replacement_cost': 'The amount charged if the film is lost or damaged.',
+    'rating': 'The age-based rating (G, PG, R, etc.).',
+    'special_features': 'Extra content included with the film (Trailers, Deleted Scenes).',
+    'fulltext': 'PostgreSQL tsvector for text search optimization.'
+  },
+  'customer': {
+    'customer_id': 'Unique identifier for the customer.',
+    'store_id': 'The store where the customer is registered.',
+    'first_name': 'Customer first name.',
+    'last_name': 'Customer last name.',
+    'email': 'Primary contact email.',
+    'address_id': 'Link to the customer physical address.',
+    'activebool': 'Whether the customer account is currently active.',
+    'create_date': 'The date the customer account was created.',
+    'active': 'Activity status indicator (1 for active, 0 for inactive).'
+  },
+  'rental': {
+    'rental_id': 'Unique identifier for the rental transaction.',
+    'rental_date': 'Timestamp of when the rental occurred.',
+    'inventory_id': 'Link to the specific physical copy rented.',
+    'customer_id': 'The customer who rented the film.',
+    'return_date': 'Timestamp of when the film was returned.',
+    'staff_id': 'The employee who processed the rental.'
+  },
+  'payment': {
+    'payment_id': 'Unique identifier for the payment.',
+    'customer_id': 'The customer who made the payment.',
+    'staff_id': 'The staff member who processed the payment.',
+    'rental_id': 'Link to the associated rental record.',
+    'amount': 'The currency amount paid.',
+    'payment_date': 'Timestamp of the transaction.'
+  }
+  // Add other tables as needed for full coverage
+};
+
 /**
  * Basic discovery fallback when API endpoint is restricted.
  * Uses hardcoded DVD rental schema metadata.
  */
 function getBasicDiscoveryFallback(): RegisteredTable[] {
   return Object.entries(DVD_RENTAL_PK_FK).map(([name, meta]) => {
-    // Generate dummy columns based on keys, others will be filled by app state discovery
+    const colDescriptions = DVD_RENTAL_COLUMN_DESCRIPTIONS[name] || {};
+    
+    // Generate columns based on keys and common fields, with descriptions
     const columns: RegisteredColumn[] = [
-      ...meta.pk.map(pkCol => ({ name: pkCol, type: 'integer', isPrimary: true })),
-      ...Object.entries(meta.fk).map(([col, fk]) => ({ name: col, type: 'integer', isPrimary: false, foreignKey: fk }))
+      ...meta.pk.map(pkCol => ({ 
+        name: pkCol, 
+        type: 'integer', 
+        isPrimary: true,
+        description: colDescriptions[pkCol]
+      })),
+      ...Object.entries(meta.fk).map(([col, fk]) => ({ 
+        name: col, 
+        type: 'integer', 
+        isPrimary: false, 
+        foreignKey: fk,
+        description: colDescriptions[col]
+      }))
     ];
+
+    // Add remaining columns that might be missing from PK/FK but exist in description map
+    Object.entries(colDescriptions).forEach(([colName, desc]) => {
+      if (!columns.find(c => c.name === colName)) {
+        columns.push({
+          name: colName,
+          type: 'text',
+          isPrimary: false,
+          description: desc
+        });
+      }
+    });
 
     return {
       name,

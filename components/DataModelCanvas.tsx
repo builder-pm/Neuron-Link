@@ -17,19 +17,19 @@ import {
 import '@xyflow/react/dist/style.css';
 import { Join, FieldAliases } from '../types';
 import JoinEditorModal from './JoinEditorModal';
-import { DatabaseIcon, EyeIcon } from './icons';
+import { DatabaseIcon, EyeIcon, XIcon } from './icons';
 
 interface DataModelCanvasProps {
-    onBack: () => void;
     joins: Join[];
     tablePositions: { [key: string]: { top: number; left: number; } };
     onJoinsChange: (joins: Join[]) => void;
     onTablePositionsChange: (positions: React.SetStateAction<{ [key: string]: { top: number; left: number; } }>) => void;
     tables: { name: string; fields: string[]; }[];
+    onPreviewTable: (table: string) => void;
+    onRemoveTable: (table: string) => void;
+    fieldAliases: FieldAliases;
     isModelDirty: boolean;
     onConfirmModel: () => void;
-    onPreviewTable: (table: string) => void;
-    fieldAliases: FieldAliases;
 }
 
 // Custom Table Node Component
@@ -37,11 +37,12 @@ interface TableNodeData extends Record<string, unknown> {
     label: string;
     fields: string[];
     onPreviewTable: (table: string) => void;
+    onRemoveTable: (table: string) => void;
     fieldAliases: FieldAliases;
 }
 
 const TableNodeComponent: React.FC<NodeProps<Node<TableNodeData>>> = memo(({ data, selected }) => {
-    const { label, fields, onPreviewTable, fieldAliases } = data;
+    const { label, fields, onPreviewTable, onRemoveTable, fieldAliases } = data;
     return (
         <div
             className={`bg-card border-2 ${selected ? 'border-primary ring-2 ring-primary/30' : 'border-border'} shadow-brutal min-w-[200px] transition-shadow`}
@@ -82,16 +83,28 @@ const TableNodeComponent: React.FC<NodeProps<Node<TableNodeData>>> = memo(({ dat
                 <span className="font-bold text-primary-foreground uppercase tracking-wide font-mono truncate mr-2" title={label}>
                     {label}
                 </span>
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onPreviewTable(label);
-                    }}
-                    className="p-1 text-primary-foreground hover:bg-black/20 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Preview Table Data"
-                >
-                    <EyeIcon className="h-4 w-4" />
-                </button>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onPreviewTable(label);
+                        }}
+                        className="p-1 text-primary-foreground hover:bg-black/20 rounded transition-colors"
+                        title="Preview Table Data"
+                    >
+                        <EyeIcon className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onRemoveTable(label);
+                        }}
+                        className="p-1 text-primary-foreground hover:bg-destructive hover:text-destructive-foreground rounded transition-colors"
+                        title="Remove Table from Model"
+                    >
+                        <XIcon className="h-3.5 w-3.5" />
+                    </button>
+                </div>
             </div>
 
             {/* Fields */}
@@ -139,16 +152,16 @@ const EmptyCanvas: React.FC = memo(() => (
 ));
 
 const DataModelCanvas: React.FC<DataModelCanvasProps> = ({
-    onBack,
     joins,
     tablePositions,
     onJoinsChange,
     onTablePositionsChange,
     tables,
-    isModelDirty,
-    onConfirmModel,
     onPreviewTable,
-    fieldAliases
+    onRemoveTable,
+    fieldAliases,
+    isModelDirty,
+    onConfirmModel
 }) => {
     const [editingJoin, setEditingJoin] = useState<Join | null>(null);
 
@@ -156,6 +169,11 @@ const DataModelCanvas: React.FC<DataModelCanvasProps> = ({
     useEffect(() => {
         onPreviewTableRef.current = onPreviewTable;
     }, [onPreviewTable]);
+
+    const onRemoveTableRef = useRef(onRemoveTable);
+    useEffect(() => {
+        onRemoveTableRef.current = onRemoveTable;
+    }, [onRemoveTable]);
 
     const createInitialNodes = useCallback(() => {
         return tables.map((table, index) => {
@@ -171,6 +189,7 @@ const DataModelCanvas: React.FC<DataModelCanvasProps> = ({
                     label: table.name,
                     fields: table.fields,
                     onPreviewTable: (t: string) => onPreviewTableRef.current(t),
+                    onRemoveTable: (t: string) => onRemoveTableRef.current(t),
                     fieldAliases: fieldAliases,
                 },
             };
@@ -240,6 +259,7 @@ const DataModelCanvas: React.FC<DataModelCanvasProps> = ({
                             ...existingNode.data,
                             fields: table.fields,
                             onPreviewTable: (t: string) => onPreviewTableRef.current(t),
+                            onRemoveTable: (t: string) => onRemoveTableRef.current(t),
                             fieldAliases: fieldAliases,
                         }
                     });
@@ -256,6 +276,7 @@ const DataModelCanvas: React.FC<DataModelCanvasProps> = ({
                             label: table.name,
                             fields: table.fields,
                             onPreviewTable: (t: string) => onPreviewTableRef.current(t),
+                            onRemoveTable: (t: string) => onRemoveTableRef.current(t),
                             fieldAliases: fieldAliases,
                         },
                     });
@@ -333,27 +354,8 @@ const DataModelCanvas: React.FC<DataModelCanvasProps> = ({
     }, []);
 
     return (
-        <div className="flex-1 flex flex-col p-4 bg-background overflow-hidden">
-            <div className="flex-shrink-0 flex justify-between items-center mb-4">
-                <div className="flex items-center space-x-4">
-                    <h2 className="text-xl font-bold text-foreground uppercase tracking-wide font-mono">Data Model</h2>
-                    <button
-                        onClick={onConfirmModel}
-                        disabled={!isModelDirty}
-                        className="brutal-button-primary text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        Confirm Model
-                    </button>
-                </div>
-                <button
-                    onClick={onBack}
-                    className="brutal-button-secondary text-xs"
-                >
-                    &larr; Back to Analysis
-                </button>
-            </div>
-
-            <div className="flex-1 relative border-2 border-border" style={{ boxShadow: 'inset 0 2px 8px 0 rgba(0,0,0,0.4)' }}>
+        <div className="flex-1 h-full flex flex-col p-4 bg-background overflow-hidden relative z-10">
+            <div className="flex-1 h-full relative border-2 border-border" style={{ boxShadow: 'inset 0 2px 8px 0 rgba(0,0,0,0.4)' }}>
                 {tables.length === 0 ? <EmptyCanvas /> : null}
 
                 <ReactFlow

@@ -3,6 +3,7 @@ import { ActionType, AppAction } from '../../state/actions';
 import { AppState } from '../../types';
 import { ChevronRightIcon, SearchIcon, EyeIcon, EditIcon, CheckIcon, XIcon, DatabaseIcon, KeyIcon, LinkIcon, AlertTriangleIcon, RefreshIcon } from '../icons';
 import { updateTableDescription, syncSchemaRegistry } from '../../services/schemaRegistry';
+import { toast } from 'react-hot-toast';
 
 interface StructurePanelProps {
     state: AppState;
@@ -11,7 +12,7 @@ interface StructurePanelProps {
 }
 
 const StructurePanel: React.FC<StructurePanelProps> = ({ state, dispatch, onPreviewTable }) => {
-    const { discoveredTables, modelConfiguration, fieldAliases, schemaRegistry, isDriftDetected, supabaseCredentials } = state;
+    const { discoveredTables, modelConfiguration, fieldAliases, fieldMetadata, schemaRegistry, isDriftDetected, supabaseCredentials } = state;
     const [searchTerm, setSearchTerm] = useState('');
     const [editingField, setEditingField] = useState<string | null>(null);
     const [tempAlias, setTempAlias] = useState('');
@@ -81,7 +82,8 @@ const StructurePanel: React.FC<StructurePanelProps> = ({ state, dispatch, onPrev
         setTempTableDesc(currentDesc);
     };
 
-    const handleSaveTableDesc = async () => {
+    const handleSaveTableDesc = async (e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
         if (!editingTableDesc || !schemaRegistry) return;
         
         setIsSavingDesc(true);
@@ -97,8 +99,10 @@ const StructurePanel: React.FC<StructurePanelProps> = ({ state, dispatch, onPrev
                 payload: { data: { ...schemaRegistry, tables: updatedTables }, driftDetected: isDriftDetected }
             });
             setEditingTableDesc(null);
-        } catch (error) {
+            toast.success('Description updated');
+        } catch (error: any) {
             console.error('Failed to update description:', error);
+            toast.error(error.message || 'Failed to update description');
         } finally {
             setIsSavingDesc(false);
         }
@@ -114,8 +118,10 @@ const StructurePanel: React.FC<StructurePanelProps> = ({ state, dispatch, onPrev
                 type: ActionType.SET_SCHEMA_REGISTRY_DATA,
                 payload: result
             });
-        } catch (error) {
+            toast.success('Registry synced');
+        } catch (error: any) {
             console.error('Failed to sync registry:', error);
+            toast.error(error.message || 'Failed to sync registry');
         } finally {
             setIsSyncing(false);
         }
@@ -150,17 +156,27 @@ const StructurePanel: React.FC<StructurePanelProps> = ({ state, dispatch, onPrev
 
             {/* Search Bar */}
             <div className="p-4 border-b border-border sticky top-0 bg-background z-10">
-                <div className="relative">
-                    <div className="absolute left-3 top-2.5 flex items-center pointer-events-none">
-                        <SearchIcon className="h-4 w-4 text-muted-foreground" />
+                <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                        <div className="absolute left-3 top-2.5 flex items-center pointer-events-none">
+                            <SearchIcon className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Search tables..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="brutal-input w-full !pl-10 !py-2"
+                        />
                     </div>
-                    <input
-                        type="text"
-                        placeholder="Search tables..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="brutal-input w-full !pl-10 !py-2"
-                    />
+                    <button 
+                        onClick={handleSyncRegistry}
+                        disabled={isSyncing}
+                        className="p-2 border-2 border-border bg-card hover:bg-muted text-muted-foreground hover:text-primary transition-all rounded shadow-[2px_2px_0_0_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px]"
+                        title="Sync Registry Metadata"
+                    >
+                        <RefreshIcon className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                    </button>
                 </div>
             </div>
 
@@ -171,7 +187,7 @@ const StructurePanel: React.FC<StructurePanelProps> = ({ state, dispatch, onPrev
                         const selectedFields = modelConfiguration[table.name] || [];
                         
                         // Metadata from registry
-                        const registryTable = schemaRegistry?.tables.find(t => t.name === table.name);
+                        const registryTable = schemaRegistry?.tables.find(t => t.name.toLowerCase() === table.name.toLowerCase());
                         const tableDescription = registryTable?.description || '';
                         const isEditingDesc = editingTableDesc === table.name;
 
@@ -188,7 +204,7 @@ const StructurePanel: React.FC<StructurePanelProps> = ({ state, dispatch, onPrev
                                                     className="brutal-checkbox"
                                                 />
                                             </div>
-                                            <div className="flex flex-col flex-1 overflow-hidden min-w-0">
+                                            <div className="flex flex-col flex-1 overflow-hidden min-w-0" title={tableDescription || 'No description available'}>
                                                 <div className="flex items-center gap-2 truncate">
                                                     <DatabaseIcon className="h-3.5 w-3.5 text-muted-foreground" />
                                                     <span className={`text-sm font-bold uppercase tracking-tight truncate ${isTableSelected ? 'text-primary' : 'text-foreground'}`}>
@@ -211,7 +227,7 @@ const StructurePanel: React.FC<StructurePanelProps> = ({ state, dispatch, onPrev
                                                             className="flex-1 bg-transparent border-none text-[10px] focus:ring-0 p-1 font-mono"
                                                             placeholder="Table description..."
                                                         />
-                                                        <button onClick={handleSaveTableDesc} disabled={isSavingDesc} className="text-green-500 hover:text-green-600 p-1">
+                                                        <button onClick={(e) => handleSaveTableDesc(e)} disabled={isSavingDesc} className="text-green-500 hover:text-green-600 p-1">
                                                             <CheckIcon className="h-3 w-3" />
                                                         </button>
                                                         <button onClick={() => setEditingTableDesc(null)} className="text-red-500 hover:text-red-600 p-1">
@@ -254,11 +270,17 @@ const StructurePanel: React.FC<StructurePanelProps> = ({ state, dispatch, onPrev
                                             const isEditing = editingField === fieldKey;
                                             const alias = fieldAliases[fieldKey];
                                             const isFieldSelected = selectedFields.includes(field);
-                                            
-                                            // Field metadata from registry
-                                            const regCol = registryTable?.columns.find(c => c.name === field);
-                                            const isPK = regCol?.isPrimary;
-                                            const foreignKey = regCol?.foreignKey;
+
+                                            // Unified field metadata (populated from registry on sync)
+                                            const meta = fieldMetadata[fieldKey];
+
+                                            // Fallback logic if metadata is not yet synced
+                                            const isPK = meta?.isPrimary ||
+                                                         field.toLowerCase() === 'id' ||
+                                                         field.toLowerCase() === `${table.name.toLowerCase()}_id` ||
+                                                         (table.name.toLowerCase().endsWith('s') && field.toLowerCase() === `${table.name.toLowerCase().slice(0, -1)}_id`);
+
+                                            const foreignKey = meta?.foreignKey;
 
                                             return (
                                                 <div key={field} className="flex items-center justify-between group/field hover:bg-muted/40 p-1.5 rounded-sm transition-colors">
@@ -294,41 +316,33 @@ const StructurePanel: React.FC<StructurePanelProps> = ({ state, dispatch, onPrev
                                                                 />
                                                                 <div className="flex items-center gap-2 min-w-0 flex-1">
                                                                     <div className="flex flex-col truncate flex-1 min-w-0">
-                                                                        <span className={`text-[11px] truncate font-mono ${alias ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
-                                                                            {alias || field}
-                                                                        </span>
+                                                                        <div className="flex items-center gap-1.5 overflow-hidden">
+                                                                            <span className={`text-[11px] truncate font-mono ${alias ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
+                                                                                {alias || field}
+                                                                            </span>
+                                                                            {/* PK/FK Indicators inside the label for better visibility */}
+                                                                            <div className="flex items-center gap-1 shrink-0">
+                                                                                {isPK && (
+                                                                                    <span className="text-primary" title="Primary Key">
+                                                                                        <KeyIcon className="h-3 w-3" />
+                                                                                    </span>
+                                                                                )}
+                                                                                {foreignKey && (
+                                                                                    <span className="text-muted-foreground/60" title={`Foreign Key: ${foreignKey.table}.${foreignKey.column}`}>
+                                                                                        <LinkIcon className="h-3 w-3" />
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
                                                                         {alias && (
                                                                             <span className="text-[9px] text-muted-foreground/60 italic truncate">
                                                                                 {field}
                                                                             </span>
                                                                         )}
                                                                     </div>
-                                                                    
-                                                                    {/* PK/FK Indicators */}
-                                                                    <div className="flex items-center gap-1 shrink-0">
-                                                                        {isPK && (
-                                                                            <span className="text-primary" title="Primary Key">
-                                                                                <KeyIcon className="h-2.5 w-2.5" />
-                                                                            </span>
-                                                                        )}
-                                                                        {foreignKey && (
-                                                                            <span className="text-muted-foreground/60" title={`Foreign Key: ${foreignKey.table}.${foreignKey.column}`}>
-                                                                                <LinkIcon className="h-2.5 w-2.5" />
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
                                                                 </div>
                                                             </label>
 
-                                                            {isFieldSelected && (
-                                                                <button
-                                                                    onClick={() => handleStartEditing(table.name, field)}
-                                                                    className={`p-1 ${alias ? 'opacity-100' : 'opacity-0 group-hover/field:opacity-100'} text-muted-foreground hover:text-primary transition-all rounded hover:bg-muted`}
-                                                                    title="Rename Field"
-                                                                >
-                                                                    <EditIcon className="h-3 w-3" />
-                                                                </button>
-                                                            )}
                                                         </>
                                                     )}
                                                 </div>

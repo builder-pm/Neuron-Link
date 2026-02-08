@@ -32,11 +32,8 @@ export const logEvent = async (category: EventCategory, type: EventType, metadat
             return;
         }
 
-        // Use any cast to bypass schema typing issues if necessary, or just rely on public schema if configured
-        // We use the full table reference with schema in the from() call which is supported by Postgres
-        // but Supabase JS client usually prefers .schema().from().
-        const { error } = await (appSupabase as any)
-            .schema('neuronlink_analytics')
+        // Use default schema (public) to avoid 406 errors
+        const { error } = await appSupabase
             .from('user_events')
             .insert({
                 user_id: user.id,

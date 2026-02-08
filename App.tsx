@@ -846,7 +846,7 @@ const App: React.FC = () => {
         initialDbType={databaseType}
       />}
 
-      {previewData && currentView !== 'modeling' && (
+      {previewData && (
         <TablePreviewModal
           tableName={previewData.name}
           data={previewData.data}
