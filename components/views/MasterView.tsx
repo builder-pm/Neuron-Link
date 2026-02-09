@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { ReactFlowProvider } from '@xyflow/react';
 import DataModelCanvas from '../DataModelCanvas';
 import SQLPanel from '../master/SQLPanel';
 import MetricsPanel from '../master/MetricsPanel';
@@ -587,21 +588,23 @@ export const MasterView: React.FC<MasterViewProps> = ({
                 onSaveClick={() => setIsSaveModalOpen(true)}
             >
                 {/* Visual Graph Component */}
-                <DataModelCanvas
-                    joins={state.joins}
-                    onJoinsChange={(j) => dispatch({ type: ActionType.SET_JOINS, payload: j })}
-                    tablePositions={state.tablePositions}
-                    onTablePositionsChange={(positions) => {
-                        const newPositions = typeof positions === 'function' ? positions(state.tablePositions) : positions;
-                        dispatch({ type: ActionType.SET_TABLE_POSITIONS, payload: newPositions });
-                    }}
-                    tables={tablesForCanvas}
-                    onPreviewTable={onPreviewTable}
-                    onRemoveTable={handleRemoveTable}
-                    fieldAliases={state.fieldAliases}
-                    isModelDirty={state.isModelDirty}
-                    onConfirmModel={() => dispatch({ type: ActionType.CONFIRM_MODEL })}
-                />
+                <ReactFlowProvider>
+                    <DataModelCanvas
+                        joins={state.joins}
+                        onJoinsChange={(j) => dispatch({ type: ActionType.SET_JOINS, payload: j })}
+                        tablePositions={state.tablePositions}
+                        onTablePositionsChange={(positions) => {
+                            const newPositions = typeof positions === 'function' ? positions(state.tablePositions) : positions;
+                            dispatch({ type: ActionType.SET_TABLE_POSITIONS, payload: newPositions });
+                        }}
+                        tables={tablesForCanvas}
+                        onPreviewTable={onPreviewTable}
+                        onRemoveTable={handleRemoveTable}
+                        fieldAliases={state.fieldAliases}
+                        isModelDirty={state.isModelDirty}
+                        onConfirmModel={() => dispatch({ type: ActionType.CONFIRM_MODEL })}
+                    />
+                </ReactFlowProvider>
             </CentralArea>
 
             {/* 2. Collapsible Drawer (Rendered before Fixed Panel to handle Z-indexing implicitly if needed, but explicit Z used) */}
