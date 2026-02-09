@@ -47,19 +47,19 @@ Extending existing `Configuration` type instead of separate entity:
 
 ### Global Metrics
 
-- [ ] **GMET-01**: Global metrics defined at schema level (admin)
-- [ ] **GMET-02**: Metric has: id, name, formula, description, format, requiredFields[]
-- [ ] **GMET-03**: Simple metrics via formula builder (pick field + aggregation)
-- [ ] **GMET-04**: Complex metrics via SQL expression with validation
-- [ ] **GMET-05**: Aggregation options: SUM, COUNT, AVG, MIN, MAX, COUNT_DISTINCT
-- [ ] **GMET-06**: Time intelligence: YoY, MoM, YTD, rolling averages
-- [ ] **GMET-07**: Required fields auto-parsed from formula when possible
+- [x] **GMET-01**: Global metrics defined at schema level (admin)
+- [x] **GMET-02**: Metric has: id, name, formula, description, format, requiredFields[]
+- [x] **GMET-03**: Simple metrics via formula builder (pick field + aggregation)
+- [x] **GMET-04**: Complex metrics via SQL expression with validation
+- [x] **GMET-05**: Aggregation options: SUM, COUNT, AVG, MIN, MAX, COUNT_DISTINCT
+- [x] **GMET-06**: Time intelligence: YoY, MoM, YTD, rolling averages
+- [x] **GMET-07**: Required fields auto-parsed from formula when possible
 
 ### Custom Metrics (Model-Level)
 
-- [ ] **CMET-01**: Users can create model-specific metrics
-- [ ] **CMET-02**: Custom metrics scoped to Configuration, not global
-- [ ] **CMET-03**: Same structure as global metrics
+- [x] **CMET-01**: Users can create model-specific metrics
+- [x] **CMET-02**: Custom metrics scoped to Configuration, not global
+- [x] **CMET-03**: Same structure as global metrics
 
 ### Metric Validation
 
@@ -106,10 +106,10 @@ Extending existing `Configuration` type instead of separate entity:
 | SQL-01 to SQL-05 | Phase 1 | Complete |
 | PREV-01 to PREV-07 | Phase 2 | Complete |
 | CONF-01 to CONF-07 | Phase 3 | Complete |
-| CONF-08 | Phase 3 | Pending |
+| CONF-08 | Phase 3 | Complete |
 | SCHM-01 to SCHM-06 | Phase 4 | Complete |
-| GMET-01 to GMET-07 | Phase 5 | Pending |
-| CMET-01 to CMET-03 | Phase 5 | Pending |
+| GMET-01 to GMET-07 | Phase 5 | Complete |
+| CMET-01 to CMET-03 | Phase 5 | Complete |
 | MVAL-01 to MVAL-04 | Phase 6 | Pending |
 | AI-01 to AI-06 | Phase 7 | Pending |
 
@@ -117,8 +117,8 @@ Extending existing `Configuration` type instead of separate entity:
 - v1 requirements: 44 total
 - Mapped to phases: 44
 - Unmapped: 0 ✓
-- Complete: 25/44 (56.8%)
+- Complete: 38/44 (86.4%)
 
 ---
 *Requirements defined: 2025-02-07*
-*Last updated: 2026-02-09 after Phase 3 & 4 completion*
+*Last updated: 2026-02-09 after Phase 5 completion*

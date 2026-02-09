@@ -1,4 +1,6 @@
-**Current focus:** Phase 3 - Extended Configuration Schema in progress
+# Project Roadmap: NeuronLink DB Config & Semantic Context
+
+**Current focus:** Phase 6 - Metric Validation
 
 ---
 
@@ -6,12 +8,12 @@
 
 | Metric | Value |
 |--------|-------|
-| **Current Phase** | 3 of 8 (Extended Configuration Schema) |
-| **Overall Progress** | 25.0% |
-| **Requirements Complete** | 12/44 |
-| **Phases Complete** | 2/8 |
+| **Current Phase** | 6 of 8 (Metric Validation) |
+| **Overall Progress** | 75.0% |
+| **Requirements Complete** | 38/44 |
+| **Phases Complete** | 5/8 |
 
-**Last activity:** 2026-02-08 - Completed Phase 02 (Preview Tab - Field Configuration)
+**Last activity:** 2026-02-09 - Completed Phase 05 (Metrics System)
 
 ---
 
@@ -30,7 +32,7 @@
 
 ---
 
-## Phase 1: SQL Editor Fix
+## Phase 1: SQL Editor Fix ✓ Complete
 
 **Goal:** SQL query results display as a proper tabular output below the editor
 
@@ -43,7 +45,7 @@ Plans:
 
 ---
 
-## Phase 2: Preview Tab - Field Configuration
+## Phase 2: Preview Tab - Field Configuration ✓ Complete
 
 **Goal:** Users can organize fields into groups, rename them, reorder, and manage visibility
 
@@ -57,118 +59,44 @@ Plans:
 
 ---
 
-## Phase 3: Extended Configuration Schema ? Complete
+## Phase 3: Extended Configuration Schema ✓ Complete
 
 **Goal:** Configuration type includes all semantic metadata fields
 
 **Plans:** 4 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — [TDD] State foundation for semantic metadata (types, actions, reducer)
-- [ ] 03-02-PLAN.md — Persistence layer & schema extension (Supabase migration, configService)
-- [ ] 03-03-PLAN.md — Semantic metadata UI (Description editor, DataType dropdown)
-- [ ] 03-04-PLAN.md — On-demand sample scanning (Service implementation & UI integration)
-
-**Requirements:**
-- CONF-01: Configuration includes fieldMetadata
-- CONF-02: FieldMetadata has description, dataType
-- CONF-03: Configuration includes sampleValues
-- CONF-04: Configuration includes hiddenFields
-- CONF-05: Configuration includes fieldOrder
-- CONF-06: Sample values scanned on-demand
-- CONF-07: Sample values limited to top 50
-- CONF-08: Localized joins stored in Configuration
-
-**Success Criteria:**
-1. `Configuration` interface extended with new fields in types.ts
-2. Supabase `configurations` table schema updated (migration)
-3. Save/Load correctly persists all new fields
-4. "Scan Values" button appears next to field, fetches top 50 distinct
-5. Scanned values cached in sampleValues, displayed in UI
-6. DataType dropdown (dimension/measure/date/identifier/text) per field
-7. Description text area per field
-
-**Key Files:**
-- `types.ts` (Configuration, FieldMetadata interfaces)
-- `supabase/migrations/` (new migration for schema)
-- `services/configService.ts` (save/load logic)
-- `state/reducer.ts` (new actions for metadata)
-
-**Dependencies:** Phase 2 (Preview tab provides UI surface)
+- [x] 03-01-PLAN.md — [TDD] State foundation for semantic metadata (types, actions, reducer)
+- [x] 03-02-PLAN.md — Persistence layer & schema extension (Supabase migration, configService)
+- [x] 03-03-PLAN.md — Semantic metadata UI (Description editor, DataType dropdown)
+- [x] 03-04-PLAN.md — On-demand sample scanning (Service implementation & UI integration)
 
 ---
 
-## Phase 4: Schema Registry
+## Phase 4: Schema Registry ✓ Complete
 
 **Goal:** Auto-extract database schema including PK-FK relationships from Supabase
 
 **Plans:** 3 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Foundations & Core Extraction (Registry table, OpenAPI parser, AI descriptions)
-- [ ] 04-02-PLAN.md — Integration & Persistence (Sync lifecycle, drift detection, connection flow)
-- [ ] 04-03-PLAN.md — UI & User Management (StructurePanel metadata display, description editing, drift badge)
-
-**Requirements:**
-- SCHM-01: Auto-extract PK-FK from information_schema on connect
-- SCHM-02: Store in schema_registry Supabase table
-- SCHM-03: Table descriptions AI-generated from names
-- SCHM-04: User can edit descriptions
-- SCHM-05: Schema drift detection
-- SCHM-06: One registry per database connection
-
-**Success Criteria:**
-1. On Supabase connect, PK-FK relationships auto-extracted
-2. `schema_registry` table stores: tables, columns, pk_fk_pairs, descriptions
-3. AI generates initial table descriptions (e.g., "Stores customer information")
-4. User can edit description in UI, saves to registry
-5. On reconnect, if schema changed, warning badge appears
-6. Schema registry shared across all configurations for that DB
-
-**Key Files:**
-- `services/schemaRegistry.ts` (new - extraction logic)
-- `supabase/migrations/` (schema_registry table)
-- `components/master/StructurePanel.tsx` (show descriptions)
-- `services/gemini.ts` (AI description generation)
-
-**Dependencies:** Phase 3 (needs Configuration infrastructure)
+- [x] 04-01-PLAN.md — Foundations & Core Extraction (Registry table, OpenAPI parser, AI descriptions)
+- [x] 04-02-PLAN.md — Integration & Persistence (Sync lifecycle, drift detection, connection flow)
+- [x] 04-03-PLAN.md — UI & User Management (StructurePanel metadata display, description editing, drift badge)
 
 ---
 
-## Phase 5: Metrics System
+## Phase 5: Metrics System ✓ Complete
 
 **Goal:** Define global and custom metrics with formula builder and time intelligence
 
-**Requirements:**
-- GMET-01: Global metrics at schema level
-- GMET-02: Metric structure: id, name, formula, description, format, requiredFields
-- GMET-03: Simple metrics via formula builder
-- GMET-04: Complex metrics via SQL expression
-- GMET-05: Aggregations: SUM, COUNT, AVG, MIN, MAX, COUNT_DISTINCT
-- GMET-06: Time intelligence: YoY, MoM, YTD, rolling averages
-- GMET-07: Required fields auto-parsed from formula
-- CMET-01: Users can create model-specific metrics
-- CMET-02: Custom metrics scoped to Configuration
-- CMET-03: Same structure as global
+**Plans:** 4 plans
 
-**Success Criteria:**
-1. Global metrics stored in `metrics` Supabase table
-2. MetricsPanel shows list of available metrics
-3. "Add Metric" opens formula builder modal
-4. Formula builder: select field → select aggregation → preview formula
-5. "Advanced" toggle switches to SQL expression editor
-6. Time functions available: YoY(field), MoM(field), YTD(field), ROLLING_AVG(field, 7)
-7. Required fields auto-detected from formula parsing
-8. Custom metrics saved within Configuration.customMetrics[]
-
-**Key Files:**
-- `types.ts` (Metric interface already exists - extend)
-- `components/master/MetricsPanel.tsx` (expand from stub)
-- `components/MetricBuilderModal.tsx` (new)
-- `supabase/migrations/` (metrics table)
-- `utils/formulaParser.ts` (new - parse required fields)
-
-**Dependencies:** Phase 4 (needs schema registry for field list)
+Plans:
+- [x] 05-01-PLAN.md — Types & Formula Parser (Metric interface, formula parsing, field extraction)
+- [x] 05-02-PLAN.md — MetricBuilderModal (Modal UI with real-time validation)
+- [x] 05-03-PLAN.md — State Management (Metric actions & reducer)
+- [x] 05-04-PLAN.md — Database & MetricsPanel (Migrations, service, enhanced UI, verification)
 
 ---
 
@@ -179,7 +107,7 @@ Plans:
 **Requirements:**
 - MVAL-01: Validate metric against current model fields
 - MVAL-02: Unavailable metrics grayed with tooltip
-- MVAL-03: Click shows suggestion to add fields
+- MVAL-03: Click unavailable metric shows suggestion to add fields
 - MVAL-04: Suggestion includes specific table.field pairs
 
 **Success Criteria:**
@@ -286,4 +214,4 @@ Phase 8 (Integration) ───────────────────�
 ---
 
 *Roadmap created: 2025-02-07*
-*Last updated: 2026-02-08 after Phase 4 planning*
+*Last updated: 2026-02-09 after Phase 5 completion*
