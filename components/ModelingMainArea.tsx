@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ReactFlowProvider } from '@xyflow/react';
 import DataModelCanvas from './DataModelCanvas';
 import SqlEditorPanel from './SqlEditorPanel';
 import { ActionType, AppAction } from '../state/actions';
@@ -50,23 +51,25 @@ const ModelingMainArea: React.FC<ModelingMainAreaProps> = ({ state, dispatch, on
             {/* Content Area */}
             <div className="flex-1 relative mt-[72px]">
                 {viewMode === 'graph' && (
-                    <DataModelCanvas
-                        joins={state.joins}
-                        onJoinsChange={(j) => dispatch({ type: ActionType.SET_JOINS, payload: j })}
-                        tablePositions={state.tablePositions}
-                        onTablePositionsChange={(tp) => {
-                            const nextPositions = typeof tp === 'function' ? tp(state.tablePositions) : tp;
-                            dispatch({ type: ActionType.SET_TABLE_POSITIONS, payload: nextPositions });
-                        }}
-                        tables={state.discoveredTables.map(t => ({
-                            name: t.name,
-                            fields: state.modelConfiguration[t.name] || []
-                        }))}
-                        isModelDirty={state.isModelDirty}
-                        onConfirmModel={() => dispatch({ type: ActionType.CONFIRM_MODEL })}
-                        onPreviewTable={onPreviewTable}
-                        fieldAliases={state.fieldAliases}
-                    />
+                    <ReactFlowProvider>
+                        <DataModelCanvas
+                            joins={state.joins}
+                            onJoinsChange={(j) => dispatch({ type: ActionType.SET_JOINS, payload: j })}
+                            tablePositions={state.tablePositions}
+                            onTablePositionsChange={(tp) => {
+                                const nextPositions = typeof tp === 'function' ? tp(state.tablePositions) : tp;
+                                dispatch({ type: ActionType.SET_TABLE_POSITIONS, payload: nextPositions });
+                            }}
+                            tables={state.discoveredTables.map(t => ({
+                                name: t.name,
+                                fields: state.modelConfiguration[t.name] || []
+                            }))}
+                            isModelDirty={state.isModelDirty}
+                            onConfirmModel={() => dispatch({ type: ActionType.CONFIRM_MODEL })}
+                            onPreviewTable={onPreviewTable}
+                            fieldAliases={state.fieldAliases}
+                        />
+                    </ReactFlowProvider>
                 )}
                 {viewMode === 'sql' && (
                     <div className="h-full w-full p-4 overflow-hidden">
