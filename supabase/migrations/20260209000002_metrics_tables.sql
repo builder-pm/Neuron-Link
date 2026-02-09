@@ -2,6 +2,7 @@
 -- Created at: 2026-02-09
 -- Description: Database schema for metrics_library and model_metrics tables
 
+-- 1. Metrics Library (Global Metrics)
 CREATE TABLE IF NOT EXISTS public.metrics_library (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
@@ -19,6 +20,7 @@ CREATE TABLE IF NOT EXISTS public.metrics_library (
 COMMENT ON TABLE public.metrics_library IS 'Global metrics library shared across all configurations';
 COMMENT ON COLUMN public.metrics_library.required_fields IS 'Array of field names referenced in formula (auto-extracted)';
 
+-- 2. Model Metrics (Custom metrics per configuration)
 CREATE TABLE IF NOT EXISTS public.model_metrics (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     config_id UUID NOT NULL,
@@ -43,7 +45,10 @@ COMMENT ON COLUMN public.model_metrics.required_fields IS 'Array of field names 
 ALTER TABLE public.metrics_library ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.model_metrics ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies
+-- Drop existing policies if they exist (to allow re-running migration)
+DROP POLICY IF EXISTS "Allow authenticated read access to metrics_library" ON public.metrics_library;
+DROP POLICY IF EXISTS "Allow authenticated full access to model_metrics" ON public.model_metrics;
+
 CREATE POLICY "Allow authenticated read access to metrics_library"
 ON public.metrics_library FOR SELECT
 TO authenticated
@@ -54,6 +59,6 @@ ON public.model_metrics FOR ALL
 TO authenticated
 USING (true);
 
--- Indexes
+-- Add indexes
 CREATE INDEX IF NOT EXISTS idx_model_metrics_config_id ON public.model_metrics(config_id);
 CREATE INDEX IF NOT EXISTS idx_metrics_library_category ON public.metrics_library(category);
