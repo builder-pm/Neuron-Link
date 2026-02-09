@@ -13,7 +13,8 @@
     ModelingSecondaryPanelTab,
     User,
     FieldMetadata,
-    SchemaRegistryEntry
+    SchemaRegistryEntry,
+    Metric
 } from '../types';
 
 export enum ActionType {
@@ -75,6 +76,12 @@ export enum ActionType {
     // Schema Registry
     SET_SCHEMA_REGISTRY_DATA = 'SET_SCHEMA_REGISTRY_DATA',
 
+    // Metrics
+    ADD_METRIC = 'ADD_METRIC',
+    UPDATE_METRIC = 'UPDATE_METRIC',
+    DELETE_METRIC = 'DELETE_METRIC',
+    SET_METRICS = 'SET_METRICS',
+
     // User
     SET_USER = 'SET_USER',
 }
@@ -126,4 +133,8 @@ export type AppAction =
     | { type: ActionType.SET_FIELD_ALIAS; payload: { fieldKey: string; alias: string } }
     | { type: ActionType.SET_FIELD_VISIBILITY; payload: { fieldKey: string; isHidden: boolean } }
     | { type: ActionType.SET_SCHEMA_REGISTRY_DATA; payload: { data: SchemaRegistryEntry; driftDetected: boolean } }
+    | { type: ActionType.ADD_METRIC; payload: { metric: Metric } }
+    | { type: ActionType.UPDATE_METRIC; payload: { metricId: string; updates: Partial<Metric> } }
+    | { type: ActionType.DELETE_METRIC; payload: { metricId: string } }
+    | { type: ActionType.SET_METRICS; payload: { metrics: Metric[] } }
     | { type: ActionType.SET_USER; payload: User | null };
