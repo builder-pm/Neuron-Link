@@ -6,7 +6,7 @@ export type AppView = 'analysis' | 'modeling';
 
 export type PanelType = 'fields' | 'db-config' | 'chat';
 
-export type AggregationType = 'SUM' | 'COUNT' | 'AVG' | 'MIN' | 'MAX';
+export type AggregationType = 'SUM' | 'COUNT' | 'AVG' | 'MIN' | 'MAX' | 'COUNT_DISTINCT';
 
 export interface PivotValue {
     field: string;
@@ -130,6 +130,12 @@ export type SemanticDataType = 'dimension' | 'measure' | 'date' | 'identifier' |
 export interface FieldMetadata {
     description?: string;
     dataType?: SemanticDataType;
+    // Structural metadata (populated from schema registry)
+    isPrimary?: boolean;
+    foreignKey?: {
+        table: string;
+        column: string;
+    };
 }
 
 export interface AppState {
@@ -219,12 +225,26 @@ export interface SemanticContextV2 {
 
 // --- New Phase 1 Types ---
 
+export type MetricFormat = 'currency' | 'percent' | 'number' | 'decimal';
+
+export type TimeIntelligenceType = 'YoY' | 'MoM' | 'YTD' | 'QTD' | 'rolling_avg_7d' | 'rolling_avg_30d';
+
 export interface Metric {
     id: string;
     name: string;
     formula: string; // e.g., "SUM(sales) - SUM(cost)"
     description?: string;
-    format?: 'currency' | 'percent' | 'number';
+    format?: MetricFormat;
+    requiredFields: string[]; // Array of field names referenced in formula (auto-extracted)
+    aggregationType?: AggregationType; // Type of aggregation (if simple metric)
+    category?: string; // Optional grouping (e.g., "Financial", "Operational")
+    isGlobal?: boolean; // True if from metrics_library, false if custom to config
+    createdAt?: string; // Timestamp for audit trail
+    timeIntelligence?: {
+        type: TimeIntelligenceType;
+        dateField: string;
+        comparisonPeriod?: number; // days for rolling average
+    };
 }
 
 export interface ModelContextField {
@@ -291,43 +311,17 @@ export interface ModelConfigurationV2 {
 
     
 
-        export interface RegisteredColumn {
-
-    
-
-            name: string;
-
-    
-
-            type: string;
-
-    
-
-            isPrimary: boolean;
-
-    
-
-            description?: string;
-
-    
-
-            foreignKey?: {
-
-    
-
-                table: string;
-
-    
-
-                column: string;
-
-    
-
-            };
-
-    
-
-        }
+export interface RegisteredColumn {
+    name: string;
+    type: string;
+    isPrimary: boolean;
+    description?: string;
+    semanticType?: SemanticDataType;
+    foreignKey?: {
+        table: string;
+        column: string;
+    };
+}
 
     
 
