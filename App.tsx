@@ -565,19 +565,48 @@ const App: React.FC = () => {
       dispatch({ type: ActionType.CONFIRM_MODEL });
       toast.success("AI Proposal Applied");
     } else if (action.action === 'propose_analysis' && action.analysisProposal) {
-      dispatch({ type: ActionType.SET_PIVOT_CONFIG, payload: action.analysisProposal.pivotConfig });
-      dispatch({ type: ActionType.SET_FILTERS, payload: action.analysisProposal.filters });
+      // Build set of all fields in the confirmed model for validation
+      const activeModelConfig = Object.keys(modelConfiguration).length > 0
+        ? modelConfiguration : confirmedModelConfiguration;
+      const modelFields = new Set<string>(Object.values(activeModelConfig).flat());
 
-      // Phase 7 Fix: Ensure analysisActiveFields are updated so the table is not empty
+      // Validate & filter pivot config to only include fields that exist in model
       const p = action.analysisProposal.pivotConfig;
-      const f = action.analysisProposal.filters;
-      const newActiveFields = [...new Set([
-        ...p.rows,
-        ...p.columns,
-        ...p.values.map(v => v.field),
-        ...f.map(filt => filt.field)
-      ])];
-      dispatch({ type: ActionType.SET_ANALYSIS_ACTIVE_FIELDS, payload: newActiveFields });
+      const f = action.analysisProposal.filters || [];
+      const validatedPivot: typeof p = {
+        rows: p.rows.filter(field => modelFields.has(field)),
+        columns: p.columns.filter(field => modelFields.has(field)),
+        values: p.values.filter(v => modelFields.has(v.field)),
+      };
+      const validatedFilters = f.filter(filt => modelFields.has(filt.field));
+
+      const droppedFields = [
+        ...p.rows.filter(field => !modelFields.has(field)),
+        ...p.columns.filter(field => !modelFields.has(field)),
+        ...p.values.filter(v => !modelFields.has(v.field)).map(v => v.field),
+      ];
+      if (droppedFields.length > 0) {
+        console.warn('[AI] Dropped fields not in model:', droppedFields);
+        toast.error(`AI suggested fields not in model: ${droppedFields.join(', ')}`);
+      }
+
+      if (validatedPivot.rows.length === 0 && validatedPivot.values.length === 0 && validatedPivot.columns.length === 0) {
+        toast.error("AI suggested fields that aren't in your model. Try adding them from the Structure tab first.");
+        return;
+      }
+
+      dispatch({ type: ActionType.SET_PIVOT_CONFIG, payload: validatedPivot });
+      dispatch({ type: ActionType.SET_FILTERS, payload: validatedFilters });
+
+      // Merge new pivot fields with existing analysisActiveFields (don't replace)
+      const pivotFields = [
+        ...validatedPivot.rows,
+        ...validatedPivot.columns,
+        ...validatedPivot.values.map(v => v.field),
+        ...validatedFilters.map(filt => filt.field)
+      ];
+      const mergedActiveFields = [...new Set([...analysisActiveFields, ...pivotFields])];
+      dispatch({ type: ActionType.SET_ANALYSIS_ACTIVE_FIELDS, payload: mergedActiveFields });
 
       toast.success("AI Analysis applied!");
     } else if (action.action === 'suggest_fields' && action.suggestedFields) {
