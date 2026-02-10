@@ -3,7 +3,7 @@ import { ActionType, AppAction } from '../../state/actions';
 import { AppState } from '../../types';
 import { DatabaseIcon, EditIcon, CheckIcon, XIcon, ChevronRightIcon } from '../icons';
 import { generateSemanticContext } from '../../utils/contextBuilder';
-import { encoding_for_model } from 'js-tiktoken';
+import { encodingForModel } from 'js-tiktoken';
 
 interface SemanticModelViewerPanelProps {
     state: AppState;
@@ -38,7 +38,7 @@ const SemanticModelViewerPanel: React.FC<SemanticModelViewerPanelProps> = ({ sta
     // Calculate token count
     const tokenCount = useMemo(() => {
         try {
-            const encoder = encoding_for_model('gpt-3.5-turbo');
+            const encoder = encodingForModel('gpt-3.5-turbo');
             const tokens = encoder.encode(semanticContext);
             encoder.free();
             return tokens.length;

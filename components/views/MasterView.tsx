@@ -4,6 +4,7 @@ import DataModelCanvas from '../DataModelCanvas';
 import SQLPanel from '../master/SQLPanel';
 import MetricsPanel from '../master/MetricsPanel';
 import StructurePanel from '../master/StructurePanel';
+import SemanticModelViewerPanel from '../master/SemanticModelViewerPanel';
 import FieldGroupingPanel from '../FieldGroupingPanel';
 import GlobalFiltersPanel from '../master/GlobalFiltersPanel';
 import ContextPanel from '../master/ContextPanel';
@@ -271,7 +272,7 @@ const FixedRightPanel = ({ state, dispatch, onPreviewTable, previewData, onClear
     isRowViewerActive?: boolean,
     onCloseRowViewer?: () => void
 }) => {
-    const [activeTab, setActiveTab] = useState<'structure' | 'preview' | 'metrics'>('structure');
+    const [activeTab, setActiveTab] = useState<'structure' | 'preview' | 'metrics' | 'semantic'>('structure');
     const [isScanningAll, setIsScanningAll] = useState(false);
     const [scanProgress, setScanProgress] = useState<{ current: number; total: number; label: string } | undefined>(undefined);
 
@@ -353,6 +354,13 @@ const FixedRightPanel = ({ state, dispatch, onPreviewTable, previewData, onClear
                     <div className="h-4 w-4 flex items-center justify-center font-bold">#</div>
                     <span>Metrics</span>
                 </button>
+                <button
+                    onClick={() => setActiveTab('semantic')}
+                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest flex flex-col items-center gap-1 ${activeTab === 'semantic' ? 'bg-muted/50 text-primary border-b-2 border-primary' : 'text-muted-foreground hover:bg-muted/20'}`}
+                >
+                    <EyeIcon className="h-4 w-4" />
+                    <span>Semantic</span>
+                </button>
             </div>
 
             {/* Content */}
@@ -405,6 +413,14 @@ const FixedRightPanel = ({ state, dispatch, onPreviewTable, previewData, onClear
                 {activeTab === 'metrics' && (
                     <div className="h-full overflow-y-auto custom-scrollbar">
                         <MetricsPanel
+                            state={state}
+                            dispatch={dispatch}
+                        />
+                    </div>
+                )}
+                {activeTab === 'semantic' && (
+                    <div className="h-full overflow-y-auto custom-scrollbar">
+                        <SemanticModelViewerPanel
                             state={state}
                             dispatch={dispatch}
                         />
