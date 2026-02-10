@@ -244,13 +244,8 @@ export async function getAIResponse(
   signal?: AbortSignal
 ): Promise<{ action: AIAction | null; textResponse: string }> {
 
-  if (!AI_API_KEY) {
-    console.warn("AI Engine API Key missing. Please set VITE_NVIDIA_API_KEY in .env.local");
-    return {
-      action: null,
-      textResponse: "AI Engine not configured. Please set the required API Key."
-    };
-  }
+  // Client-side key check is relaxed to allow server-side proxy injection
+  // if (!AI_API_KEY) { ... } 
 
   const systemPrompt = generateSystemPrompt(context);
 
@@ -267,7 +262,7 @@ export async function getAIResponse(
     const response = await fetch(AI_BASE_URL, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${AI_API_KEY}`,
+        ...(AI_API_KEY ? { "Authorization": `Bearer ${AI_API_KEY}` } : {}),
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -345,14 +340,14 @@ export async function getAIResponseWithData(
   data: DataRow[],
   modelId: string = DEFAULT_MODEL_ID
 ): Promise<string> {
-  if (!AI_API_KEY) return "AI Assistant not configured.";
+  // if (!AI_API_KEY) return "AI Assistant not configured.";
   const summarizationPrompt = `User Question: "${prompt}"\nSQL Context: "${query}"\nData Result: ${JSON.stringify(data.slice(0, 20))}\n\nTask: Give a concise natural language answer based on the data.`;
 
   try {
     const response = await fetch(AI_BASE_URL, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${AI_API_KEY}`,
+        ...(AI_API_KEY ? { "Authorization": `Bearer ${AI_API_KEY}` } : {}),
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -388,7 +383,7 @@ export async function generateTableDescriptions(tableNames: string[]): Promise<R
     const response = await fetch(AI_BASE_URL, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${AI_API_KEY}`,
+        ...(AI_API_KEY ? { "Authorization": `Bearer ${AI_API_KEY}` } : {}),
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
