@@ -1,4 +1,4 @@
-# NeuronLink: The UX-First Semantic Intelligence Layer
+# NeuronLink: The Visual Workbench for Your Data Warehouse
 
 [![Vite](https://img.shields.io/badge/vite-%23646CFF.svg?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)](https://reactjs.org/)
@@ -6,7 +6,7 @@
 [![NVIDIA](https://img.shields.io/badge/NVIDIA-AI_Foundation-76B900?style=for-the-badge&logo=nvidia&logoColor=white)](https://build.nvidia.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-> **"Data is useless if the interface is the bottleneck. NeuronLink reimagines the human-data relationship through an AI-governed Semantic UX."**
+> **"Data is useless if the interface is the bottleneck. NeuronLink reimagines the human-data relationship through a Business-First Data Interface.."**
 
 NeuronLink is a high-performance **Data UX** platform engineered for the **CTO who demands governance** and the **COO who needs velocity**. It bridges the gap between raw data warehouses and business intuition through a **Deterministic Semantic Layer**, enabling accurate, local-first reasoning without the hallucination risks of generic AI.
 
