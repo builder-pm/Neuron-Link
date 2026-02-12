@@ -1,58 +1,54 @@
-# NeuronLink Lakehouse
+# NeuronLink
 
-**NeuronLink** is a self-service data intelligence platform that bridges the gap between raw data warehouses and business decision-making. It combines a visual modeling canvas with an AI-powered query engine, allowing users to explore, join, and analyze data without specific SQL knowledge.
-
-> **Built for the Modern Data Stack:** Designed to solve the "Analytic Gap" where business users are blocked by technical barriers to data access.
+**NeuronLink** is an enterprise-grade **Universal Data Intelligence** platform designed to democratize data access. It bridges the "Analytic Gap" by introducing a **Semantic Context Layer** that enables an AI query engine to understand business logic, not just raw SQL.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Stack](https://img.shields.io/badge/stack-React_Typescript_Supabase-purple.svg)
 
-## 🎯 Project Goals
+## � The Vision
+Modern data warehouses (Snowflake, BigQuery, Postgres) are technical bottlenecks. NeuronLink enables business users to converse with their data across any warehouse using a secure, governed semantic layer.
 
-This project was built to demonstrate **Product Engineering** capabilities: moving beyond simple CRUD apps to build complex, interactive tools that solve real enterprise problems.
+---
 
-**Key Challenges Solved:**
-1.  **Hybrid Data Processing**: seamlessly switching between server-side SQL execution (Supabase/Athena) and client-side operations.
-2.  **Visual Metaprogramming**: A node-based editor (Modeling Canvas) that generates executable SQL, treating code-as-data.
-3.  **AI-Native UX**: Integrating LLMs (Gemini) not just as a chatbot, but as a deterministic query generator with schema awareness.
+## 🚀 Core Product Pillars
 
-## �️ Technical Architecture
+### 1. Semantic Context Engine
+We bridge the semantic gap using a **Schema Registry**. 
+- **Automated Discovery**: Auto-extracts relationships from the warehouse (utilizing a custom RPC on Supabase for robust metadata extraction).
+- **Business Aliasing**: Map cryptic columns to human-readable business terms.
+- **AI RAG-Lite**: We inject field descriptions and cached sample values into AI prompts to eliminate hallucinations.
 
-### The "Lakehouse" Abstraction
-NeuronLink treats disparate data sources as a unified substrate. The frontend doesn't care if data comes from a massive S3 Data Lake (via Athena) or a local CSV—the **Data Service Layer** normalizes it into a consistent schema for the UI.
+### 2. Visual Data Modeler
+A node-based "Canvas" that treats SQL as a graph state.
+- **Deterministic Generation**: The visual model is the direct input for our SQL compiler (`utils/dataProcessing.ts`).
+- **Drift Detection**: Automatically hashes and monitors physical schema changes, alerting admins to "Semantic Drift".
 
-### Visual Modeling Engine
-*   **Graph State**: Uses a graph data structure to manage table nodes and relationship edges.
-*   **SQL Transpilation**: The visual model is compiled in real-time into optimized SQL joins (Left/Inner/Right) before being sent to the execution engine.
-*   **Drift Detection**: The `SchemaRegistry` service actively monitors for drift between the local model definitions and the actual database schema.
+### 3. Unified Metrics & Analytics
+- **Metric Layer**: Define KPIs (ARR, LTV) once; reuse everywhere with built-in field validation.
+- **Product Analytics**: Every interaction is logged to a persistent `user_events` schema for auditing and usage analysis.
+- **Session Tracking**: Uses unique session IDs to group events into coherent user discovery journeys.
 
-### AI Integration (RAG-Lite)
-Instead of blind LLM calls, NeuronLink uses a **Semantic Context Injection** pattern:
-1.  **Schema Extraction**: The active table structure and aliases are serialized.
-2.  **Context Windowing**: Only relevant metadata is sent to Gemini to minimize token usage and latency.
-3.  **Deterministic Output**: The AI acts as a translator (Natural Language -> SQL), which is then vetted by the execution layer.
+## 🏗️ Technical Architecture
 
-## 🛠️ Technology Stack
+NeuronLink uses a **Hybrid Compute** model:
+*   **Production**: Live Supabase (Postgres) connection with Row Level Security.
+*   **Demo/Simulation**: Local WASM-based SQLite (`sql.js`) for zero-latency testing.
+*   **Cloud Warehouses**: Currently supports AWS Athena via high-fidelity simulation (designed for modular enterprise adapters).
 
-*   **Frontend Core**: React 18, TypeScript, Vite.
-*   **Styling System**: Tailwind CSS v4 with a custom "Cyber-Brutalist" token set (variables for High Contrast/Dark Mode).
-*   **State Management**: React Context + Reducers (chosen for explicit state transitions over opaque magic).
-*   **Backend / Auth**: Supabase (Postgres + GoTrue) for secure, row-level authenticated access.
-*   **Visuals**: React Flow for the node canvas.
+### 📊 Sample Dataset
+The platform includes the **`dvdrental`** PostgreSQL sample dataset, utilized as the canonical benchmark for our Semantic Layer and Metric validation tests.
 
-## 🚀 Getting Started
-
-Designed for a zero-friction developer experience (DX).
+## �️ Getting Started
 
 ### Prerequisites
 *   Node.js v18+
-*   Supabase Project (Optional - Guest mode available)
+*   Supabase Account (for persistence & auth)
 *   Google Gemini API Key
 
 ### Installation
 
-1.  **Clone & Install**
+1.  **Clone the repository**
     ```bash
     git clone git@github.com:builder-pm/Neuron-Link.git
     cd Neuron-Link
@@ -63,7 +59,6 @@ Designed for a zero-friction developer experience (DX).
     Create `.env.local`:
     ```env
     VITE_GEMINI_API_KEY=your_key
-    # Optional: For Full Auth & Persistence
     VITE_SUPABASE_URL=your_project_url
     VITE_SUPABASE_ANON_KEY=your_key
     ```
@@ -74,19 +69,11 @@ Designed for a zero-friction developer experience (DX).
     ```
 
 ## 🎨 Design Philosophy: "Cyber Brutalism"
-
-I chose a **Brutalist** design aesthetic (`#1a1a1a` Mono, `#CAFF58` Lime, Hard Shadows) to differentiate from the "soft SaaS" look. It emphasizes:
-*   **Data Density**: High contrast allows for denser information display without visual fatigue.
-*   **Function over Form**: Hard edges and distinct borders make click targets and drop zones unambiguous.
-*   **Performance**: CSS-first animations and zero layout-shifting.
-
-## 👨‍💻 About the Author
-
-Built by **Naman Kansal**, a Product Engineer focused on building tools that empower users.
-
-*   **Portfolio**: [namankansal.in](https://namankansal.in)
-*   **GitHub**: [@builder-pm](https://github.com/builder-pm)
-
+NeuronLink rejects "soft" SaaS aesthetics. We use a **Brutalist** system (High-contrast `#CAFF58` Lime, Hard Borders, and Dark Mode) to prioritize **information density** and power-user speed.
 
 ---
-*Open for code review and architectural discussion.*
+
+## 👨‍💻 Deep Dive
+For a comprehensive analysis of the architectural decisions, trade-offs, and implementation details, see our **[Product Deep Dive](file:///C:/Users/naman/.gemini/antigravity/brain/7cdad4f4-5b8b-4743-99d1-cfb8a2cdeeba/product_deep_dive.md)**.
+
+*Built by [Naman Kansal](https://namankansal.in)*
