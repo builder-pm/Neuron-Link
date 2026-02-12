@@ -1,0 +1,6 @@
+Connecting to Supabase: https://eeagdzfpdgteuujdcfwu.supabase.co
+--- Testing Auth Signup with Redirect (Dry Run) ---
+Attempting signup for test_debug_redirect_1770916116903@example.com with redirect http://localhost:5173/auth/callback...
+Signup API Call Successful!
+User ID: cfed0e90-9bef-429e-b08c-95c76a2fa270
+Session: Null (Confirmation email sent?)

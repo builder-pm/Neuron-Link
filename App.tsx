@@ -24,6 +24,7 @@ import { appSupabase } from './services/appSupabase';
 import { syncSchemaRegistry } from './services/schemaRegistry';
 import { initLogging, logEvent } from './services/logger';
 import AuthModal from './components/AuthModal'; // Import Auth Modal
+import PasswordResetModal from './components/PasswordResetModal';
 import { ErrorBoundary, FallbackProps } from 'react-error-boundary';
 import { validateMetricAvailability } from './utils/metricValidator';
 
@@ -122,7 +123,6 @@ interface PrimaryPanelProps {
   modelConfiguration: ModelConfiguration;
   confirmedModelConfiguration: ModelConfiguration;
   joins: Join[];
-  onCancelAI?: () => void;
   onCancelAI?: () => void;
   metrics: import('./types').Metric[];
   hiddenFields: Set<string>;
@@ -242,6 +242,7 @@ const App: React.FC = () => {
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [isGuest, setIsGuest] = useState(false);
+  const [isPasswordReset, setIsPasswordReset] = useState(false);
 
   // Authentication & Session Init
   useEffect(() => {
@@ -292,6 +293,9 @@ const App: React.FC = () => {
         setIsGuest(false);
         dispatch({ type: ActionType.SET_THREADS, payload: [] }); // Clear threads on sign-out
         dispatch({ type: ActionType.SET_CURRENT_THREAD, payload: null }); // Clear current thread
+      }
+      if (_event === 'PASSWORD_RECOVERY') {
+        setIsPasswordReset(true);
       }
     });
 
@@ -1105,6 +1109,9 @@ const App: React.FC = () => {
     <div className="h-screen w-screen bg-background text-foreground flex flex-col font-sans">
       {!isAuthChecking && !user && !isGuest && (
         <AuthModal onAuthSuccess={(guest) => guest ? setIsGuest(true) : setUser(appSupabase.auth.getUser().then(({ data }) => data.user))} />
+      )}
+      {isPasswordReset && (
+        <PasswordResetModal onClose={() => setIsPasswordReset(false)} />
       )}
       <Toaster
         position="top-center"
