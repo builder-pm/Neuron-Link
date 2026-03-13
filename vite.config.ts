@@ -17,7 +17,22 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
+        // sql.js web compatibility polyfills (stubbed)
+        'fs': path.resolve(__dirname, 'empty-polyfill.js'),
+        'path': path.resolve(__dirname, 'empty-polyfill.js'),
+        'crypto': path.resolve(__dirname, 'empty-polyfill.js'),
       }
+    },
+    build: {
+      rollupOptions: {
+        onwarn(warning, warn) {
+          // Silence "use client" warnings in third-party packages
+          if (warning.code === 'MODULE_LEVEL_DIRECTIVE' && warning.message.includes('use client')) {
+            return;
+          }
+          warn(warning);
+        },
+      },
     },
     server: {
       proxy: {
