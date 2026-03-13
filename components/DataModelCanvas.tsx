@@ -30,8 +30,6 @@ interface DataModelCanvasProps {
     onPreviewTable: (table: string) => void;
     onRemoveTable: (table: string) => void;
     fieldAliases: FieldAliases;
-    isModelDirty: boolean;
-    onConfirmModel: () => void;
 }
 
 // Custom Table Node Component
@@ -161,9 +159,7 @@ const DataModelCanvas: React.FC<DataModelCanvasProps> = ({
     tables,
     onPreviewTable,
     onRemoveTable,
-    fieldAliases,
-    isModelDirty,
-    onConfirmModel
+    fieldAliases
 }) => {
     const { fitView } = useReactFlow();
     const [editingJoin, setEditingJoin] = useState<Join | null>(null);
@@ -369,14 +365,14 @@ const DataModelCanvas: React.FC<DataModelCanvasProps> = ({
         const tableNames = tables.map(t => t.name);
         const newPositions = calculateAutoLayout(tableNames, joins);
         onTablePositionsChange(newPositions);
-        
+
         // Update nodes immediately for better UX
-        setNodes(currentNodes => 
+        setNodes(currentNodes =>
             currentNodes.map(node => ({
                 ...node,
-                position: { 
-                    x: newPositions[node.id]?.left || node.position.x, 
-                    y: newPositions[node.id]?.top || node.position.y 
+                position: {
+                    x: newPositions[node.id]?.left || node.position.x,
+                    y: newPositions[node.id]?.top || node.position.y
                 }
             }))
         );

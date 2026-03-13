@@ -21,6 +21,37 @@ const SuggestionBlock: React.FC<{
     onApply: () => void;
     isApplied: boolean;
 }> = ({ action, onApply, isApplied }) => {
+    // Handle propose_preset specifically
+    if (action.action === 'propose_preset' && action.presetProposal) {
+        return (
+            <div className="mt-3 p-3 border-2 border-primary bg-background shadow-brutal-sm">
+                <div className="flex items-center gap-2 mb-2">
+                    <DatabaseIcon className="h-4 w-4 text-primary" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-primary">Preset Recommended</span>
+                </div>
+
+                <div className="mb-3 space-y-1">
+                    <strong className="block text-sm text-foreground">{action.presetProposal.presetName}</strong>
+                    <p className="text-xs text-muted-foreground">{action.presetProposal.description}</p>
+                </div>
+
+                <button
+                    onClick={onApply}
+                    disabled={isApplied}
+                    className={`w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wider
+                        border-2 border-border transition-all
+                        ${isApplied
+                            ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                            : 'bg-primary text-primary-foreground shadow-brutal hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-brutal-lg'
+                        }`}
+                >
+                    <Plus className="h-3 w-3" />
+                    {isApplied ? 'Preset Applied' : 'Apply Preset'}
+                </button>
+            </div>
+        );
+    }
+
     if (!action.suggestedFields || action.suggestedFields.length === 0) return null;
 
     return (
@@ -117,6 +148,18 @@ const ActionCard: React.FC<{ action: AIAction }> = ({ action }) => {
                 <pre className="text-xs font-mono text-muted-foreground bg-background/50 p-2 border border-border overflow-x-auto max-h-24">
                     {action.query.length > 120 ? action.query.substring(0, 120) + '...' : action.query}
                 </pre>
+            </div>
+        );
+    }
+
+    if (action.action === 'propose_preset' && action.presetProposal) {
+        return (
+            <div className="mt-3 p-3 border-2 border-primary/30 bg-primary/5">
+                <div className="flex items-center gap-2 mb-1">
+                    <DatabaseIcon className="h-4 w-4 text-primary" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-primary">Loaded Preset</span>
+                </div>
+                <span className="text-xs text-foreground font-semibold">{action.presetProposal.presetName}</span>
             </div>
         );
     }

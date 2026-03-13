@@ -3,7 +3,7 @@ import { ReactFlowProvider } from '@xyflow/react';
 import DataModelCanvas from './DataModelCanvas';
 import SqlEditorPanel from './SqlEditorPanel';
 import { ActionType, AppAction } from '../state/actions';
-import { AppState } from '../types';
+import { AppState, Join, Metric } from '../types';
 import { CogIcon, SqlIcon, TableIcon } from './icons';
 
 interface ModelingMainAreaProps {
@@ -54,19 +54,18 @@ const ModelingMainArea: React.FC<ModelingMainAreaProps> = ({ state, dispatch, on
                     <ReactFlowProvider>
                         <DataModelCanvas
                             joins={state.joins}
-                            onJoinsChange={(j) => dispatch({ type: ActionType.SET_JOINS, payload: j })}
+                            onJoinsChange={(j: Join[]) => dispatch({ type: ActionType.SET_JOINS, payload: j })}
                             tablePositions={state.tablePositions}
-                            onTablePositionsChange={(tp) => {
+                            onTablePositionsChange={(tp: any) => {
                                 const nextPositions = typeof tp === 'function' ? tp(state.tablePositions) : tp;
                                 dispatch({ type: ActionType.SET_TABLE_POSITIONS, payload: nextPositions });
                             }}
-                            tables={state.discoveredTables.map(t => ({
+                            tables={state.discoveredTables.map((t: any) => ({
                                 name: t.name,
                                 fields: state.modelConfiguration[t.name] || []
                             }))}
-                            isModelDirty={state.isModelDirty}
-                            onConfirmModel={() => dispatch({ type: ActionType.CONFIRM_MODEL })}
                             onPreviewTable={onPreviewTable}
+                            onRemoveTable={(t: string) => dispatch({ type: ActionType.UPDATE_MODEL_CONFIG, payload: { tableName: t, isSelected: false } })}
                             fieldAliases={state.fieldAliases}
                         />
                     </ReactFlowProvider>

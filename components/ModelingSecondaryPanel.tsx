@@ -7,10 +7,6 @@ import { DataRow } from '../types';
 interface ModelingSecondaryPanelProps {
     state: AppState;
     dispatch: React.Dispatch<AppAction>;
-    sqlQuery: string;
-    executeQuery: (query: string) => Promise<DataRow[]>;
-    availableFields: string[];
-    fieldGroups: FieldGroups;
     onPreviewTable: (tableName: string) => void;
 }
 

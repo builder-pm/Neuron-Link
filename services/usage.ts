@@ -3,7 +3,7 @@ import { appSupabase, isAppSupabaseConfigured } from './appSupabase';
 const GUEST_LIMIT = 3;
 const PRO_LIMIT = 15;
 const MASTER_LIMIT = 1000;
-const DEMO_EMAIL = 'demo@neuronlink.pro';
+const DEMO_EMAIL = 'demo@neuron-link.pro';
 
 /**
  * Get the current user's IP address using a public service.

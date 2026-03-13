@@ -152,6 +152,24 @@ When the user needs data from tables NOT in their current model but visible in O
 }
 \`\`\`
 
+## Action 5: \`propose_preset\`
+When the user asks to switch databases, profiles, or domains entirely, or their request would be better served by a different pre-configured database preset. Look at the AVAILABLE PRESETS list in the context.
+
+\`\`\`json
+{
+    "thought": "User asked to analyze DVD rentals, but we are currently looking at the HR dataset. I will recommend the DVD Rental preset.",
+    "confidence": "high",
+    "command": {
+        "action": "propose_preset",
+        "presetProposal": {
+            "presetName": "DVD Rental Tracking",
+            "description": "Comprehensive schema for tracking customers, films, inventory, and staff."
+        }
+    },
+    "response": "It sounds like you want to look at the DVD Rental data. Let's switch over to that preset."
+}
+\`\`\`
+
 ## No Action: General Chat / Clarification
 When no action is needed — answering questions, clarifying, explaining.
 
@@ -201,7 +219,7 @@ When answering questions, actively leverage the semantic context:
 - **Foreign keys**: Use these to determine correct join paths.
 `;
 
-function generateSystemPrompt(context: SemanticContext): string {
+async function generateSystemPrompt(context: SemanticContext): Promise<string> {
   const isModeling = context.view === 'modeling';
 
   const semanticContextString = generateSemanticContext({
@@ -214,12 +232,27 @@ function generateSystemPrompt(context: SemanticContext): string {
     maxChars: 8000
   });
 
+  // Dynamically fetch available presets to feed into the prompt
+  let presetsContext = '';
+  try {
+     const { configService } = await import('./configService');
+     const configs = await configService.getConfigs('db_config');
+     if (configs.length > 0) {
+        presetsContext = `\n# AVAILABLE PRESETS\nThe user can switch to these databases at any time. If their request aligns perfectly with one of these, use the propose_preset action:\n`;
+        configs.forEach(c => {
+           presetsContext += `- **${c.name}**: ${c.description || 'No description'}\n`;
+        });
+     }
+  } catch (e) {
+     console.error('Failed to load presets for system prompt', e);
+  }
+
   let modeInstructions = '';
   if (isModeling) {
     modeInstructions = `
 # CURRENT MODE: MODELING
 The user is on the Data Model canvas — they can see tables, fields, and join lines.
-**Valid actions**: \`propose_model\`, general chat.
+**Valid actions**: \`propose_model\`, \`propose_preset\`, general chat.
 **Invalid actions**: \`propose_analysis\`, \`query\` (no model confirmed yet).
 Help them select tables, configure joins, and understand their schema.
 If they ask analytical questions, gently remind them to confirm their model first.`;
@@ -227,13 +260,13 @@ If they ask analytical questions, gently remind them to confirm their model firs
     modeInstructions = `
 # CURRENT MODE: ANALYSIS
 The user is on the Table/Pivot view — they can see their data grid and pivot controls.
-**Valid actions**: \`propose_analysis\`, \`query\`, \`suggest_fields\`, general chat.
+**Valid actions**: \`propose_analysis\`, \`query\`, \`suggest_fields\`, \`propose_preset\`, general chat.
 **Invalid actions**: \`propose_model\` (model is already set).
 Help them pivot, filter, query, and explore their confirmed data model.
 If they need fields from other tables, use \`suggest_fields\`.`;
   }
 
-  return `${BASE_SYSTEM_INSTRUCTION}\n${modeInstructions}\n\n${semanticContextString}`;
+  return `${BASE_SYSTEM_INSTRUCTION}\n${modeInstructions}\n${presetsContext}\n${semanticContextString}`;
 }
 
 export async function getAIResponse(
@@ -247,7 +280,7 @@ export async function getAIResponse(
   // Client-side key check is relaxed to allow server-side proxy injection
   // if (!AI_API_KEY) { ... } 
 
-  const systemPrompt = generateSystemPrompt(context);
+  const systemPrompt = await generateSystemPrompt(context);
 
   // Transform history to OpenAI format
   const messages = history.slice(-6).map(msg => ({
