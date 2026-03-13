@@ -12,9 +12,8 @@ import ModelingSecondaryPanel from './components/ModelingSecondaryPanel';
 import ModelingPrimaryPanel from './components/ModelingPrimaryPanel';
 import MasterView from './components/views/MasterView';
 import { DataRow, PanelType, AIAction, Filter, PivotConfig, DatabaseType, AthenaCredentials, SupabaseCredentials, AppState, AppView, FieldGroups, Join, ModelConfiguration, FieldAliases, AggregationType } from './types';
-import { generatePrompts, PromptContext } from './utils/promptSuggestions';
-import { useAppState, useAppDispatch } from './state/context';
 import { ActionType, AppAction } from './state/actions';
+import { useAppState, useAppDispatch } from './state/context';
 import { generateQuery, generatePreviewQuery } from './utils/dataProcessing';
 import * as db from './services/database';
 import { chatService } from './services/chatService';
@@ -54,19 +53,16 @@ interface SecondaryPanelProps {
   pivotConfig: PivotConfig;
   filters: Filter[];
   dispatch: React.Dispatch<AppAction>;
-  fieldGroups: FieldGroups;
   allAvailableFields: string[];
 
   state: AppState;
-  sqlQuery: string;
-  executeQuery: (query: string) => Promise<DataRow[]>;
   onPreviewTable: (tableName: string) => void;
   onBatchUpdate: (config: PivotConfig, filters: Filter[]) => void;
 }
 
 const SecondaryPanelComponent: React.FC<SecondaryPanelProps> = ({
-  currentView, pivotConfig, filters, dispatch, fieldGroups, allAvailableFields, state,
-  sqlQuery, executeQuery, onPreviewTable, onBatchUpdate
+  currentView, pivotConfig, filters, dispatch, allAvailableFields, state,
+  onPreviewTable, onBatchUpdate
 }) => {
   if (currentView === 'analysis') {
     return (
@@ -93,10 +89,6 @@ const SecondaryPanelComponent: React.FC<SecondaryPanelProps> = ({
     <ModelingSecondaryPanel
       state={state}
       dispatch={dispatch}
-      sqlQuery={sqlQuery}
-      executeQuery={executeQuery}
-      availableFields={allAvailableFields}
-      fieldGroups={fieldGroups}
       onPreviewTable={onPreviewTable}
     />
   );
@@ -126,14 +118,17 @@ interface PrimaryPanelProps {
   onCancelAI?: () => void;
   metrics: import('./types').Metric[];
   hiddenFields: Set<string>;
+  onLoadConfig: (config: any, name: string) => void;
+  configName: string;
 }
 
 const PrimaryPanelComponent: React.FC<PrimaryPanelProps> = ({
   currentView, activePanel, selectedFields, onFieldChange, onAIAction, fieldGroups,
   executeQuery, availableFields, dispatch,
   onSendMessage, isAiLoading,
-  isDemoMode, fieldAliases, isGuest,
-  modelConfiguration, confirmedModelConfiguration, joins, state, onCancelAI, metrics, hiddenFields
+  fieldAliases, isGuest,
+  confirmedModelConfiguration, joins, state, onCancelAI, metrics, hiddenFields,
+  onLoadConfig, configName
 }) => {
   if (currentView === 'analysis') {
     return (
@@ -153,6 +148,7 @@ const PrimaryPanelComponent: React.FC<PrimaryPanelProps> = ({
           modelConfiguration: confirmedModelConfiguration, // Use confirmed for AI context in Analysis
           joins: joins,
           fieldAliases: fieldAliases,
+          fieldMetadata: state.fieldMetadata,
           metrics: metrics
         }}
         suggestedPrompts={[]}
@@ -165,6 +161,8 @@ const PrimaryPanelComponent: React.FC<PrimaryPanelProps> = ({
         currentThreadId={state.currentThreadId}
         metrics={metrics}
         hiddenFields={hiddenFields}
+        onLoadConfig={onLoadConfig}
+        configName={configName}
       />
 
     );
@@ -214,6 +212,8 @@ const MainAreaComponent: React.FC<MainAreaProps> = ({
         onExport={onExport}
         isDemoMode={isDemoMode}
         isPristine={Object.keys(state.modelConfiguration).length === 0}
+        metrics={state.metrics}
+        fieldMetadata={state.fieldMetadata}
       />
     );
   }
@@ -490,6 +490,11 @@ const App: React.FC = () => {
     runQuery();
   }, [dbService, sqlQuery, pivotConfig, filters, joins, confirmedModelConfiguration, modelConfiguration, discoveredTables, dispatch, isLakehouseConnected, isDemoMode, state.fieldAliases, analysisActiveFields]);
 
+  const handleLoadConfig = useCallback((config: any, name: string) => {
+    dispatch({ type: ActionType.LOAD_CONFIG, payload: config });
+    dispatch({ type: ActionType.SET_CONFIG_NAME, payload: name });
+  }, [dispatch]);
+
   const handleRefreshData = useCallback(() => {
     if (!dbService) return;
     const runQuery = async () => {
@@ -589,7 +594,7 @@ const App: React.FC = () => {
       const validPlainNames = new Set<string>();
 
       Object.entries(activeModelConfig).forEach(([table, fields]) => {
-        fields.forEach(field => {
+        (fields as string[]).forEach((field: string) => {
           qualifiedToPlain.set(`${table}.${field}`, field);
           plainToTable.set(field, table);
           validPlainNames.add(field);
@@ -615,18 +620,18 @@ const App: React.FC = () => {
       const f = action.analysisProposal.filters || [];
 
       const validatedPivot = {
-        rows: p.rows.map(normalize).filter((f): f is string => f !== null),
-        columns: p.columns.map(normalize).filter((f): f is string => f !== null),
-        values: p.values.map(v => ({ ...v, field: normalize(v.field) })).filter((v): v is { field: string; aggregation: AggregationType; displayName?: string } => v.field !== null),
+        rows: p.rows.map((f: string) => normalize(f)).filter((f: string | null): f is string => f !== null),
+        columns: p.columns.map((f: string) => normalize(f)).filter((f: string | null): f is string => f !== null),
+        values: p.values.map((v: any) => ({ ...v, field: normalize(v.field) })).filter((v: any): v is { field: string; aggregation: AggregationType; displayName?: string } => v.field !== null),
       };
 
-      const validatedFilters = f.map(filt => ({ ...filt, field: normalize(filt.field) })).filter((filt): filt is Filter => filt.field !== null);
+      const validatedFilters = (f as Filter[]).map((filt: Filter) => ({ ...filt, field: normalize(filt.field) })).filter((filt: any): filt is Filter => filt.field !== null);
 
       const droppedFields = [
-        ...p.rows.filter(field => !normalize(field)),
-        ...p.columns.filter(field => !normalize(field)),
-        ...p.values.filter(v => !normalize(v.field)).map(v => v.field),
-        ...f.filter(filt => !normalize(filt.field)).map(filt => filt.field)
+        ...p.rows.filter((field: string) => !normalize(field)),
+        ...p.columns.filter((field: string) => !normalize(field)),
+        ...p.values.filter((v: any) => !normalize(v.field)).map((v: any) => v.field),
+        ... (f as Filter[]).filter((filt: Filter) => !normalize(filt.field)).map((filt: Filter) => filt.field)
       ];
 
       if (droppedFields.length > 0) {
@@ -663,11 +668,11 @@ const App: React.FC = () => {
       });
 
       // Also merge suggested joins if provided
-      if (action.suggestedJoins && action.suggestedJoins.length > 0) {
-        const existingJoinKeys = new Set(joins.map(j => `${j.from}-${j.to}-${j.on.from}-${j.on.to}`));
+      if (action.suggestedJoins && (action.suggestedJoins as Join[]).length > 0) {
+        const existingJoinKeys = new Set(joins.map((j: Join) => `${j.from}-${j.to}-${j.on.from}-${j.on.to}`));
         const newJoins = [...joins];
 
-        action.suggestedJoins.forEach(sj => {
+        (action.suggestedJoins as Join[]).forEach((sj: Join) => {
           const key = `${sj.from}-${sj.to}-${sj.on.from}-${sj.on.to}`;
           if (!existingJoinKeys.has(key)) {
             newJoins.push(sj);
@@ -682,6 +687,27 @@ const App: React.FC = () => {
       // Auto-confirm suggested fields so queries can run with them
       dispatch({ type: ActionType.CONFIRM_MODEL });
       toast.success(`Added ${action.suggestedFields.length} table(s) to your model!`, { icon: '✨' });
+    } else if (action.action === 'propose_preset' && action.presetProposal) {
+      if (!action.presetProposal.presetName) {
+         toast.error("AI proposed a preset but didn't provide a name.");
+         return false;
+      }
+      try {
+         const configs = await import('./services/configService').then(m => m.configService.getConfigs('db_config'));
+         const targetPreset = configs.find(c => c.name.toLowerCase() === action.presetProposal!.presetName.toLowerCase());
+         if (targetPreset) {
+             dispatch({ type: ActionType.LOAD_CONFIG, payload: targetPreset.config });
+             dispatch({ type: ActionType.SET_CONFIG_NAME, payload: targetPreset.name });
+             toast.success(`Preset loaded: ${targetPreset.name}`, { icon: '📂' });
+             return true;
+         } else {
+             toast.error(`Preset not found: ${action.presetProposal.presetName}`);
+             return false;
+         }
+      } catch (err: any) {
+         toast.error(`Failed to load preset: ${err.message}`);
+         return false;
+      }
     }
     return true;
   }, [dispatch, pivotConfig, isGuest, currentView, modelConfiguration, joins, confirmedModelConfiguration, analysisActiveFields]);
@@ -1008,7 +1034,7 @@ const App: React.FC = () => {
       PEOPLE: /first_name|last_name|full_name|email|phone|mobile|username|password|actor|staff|customer|manager/i
     };
 
-    allFieldsInModel.forEach(field => {
+    allFieldsInModel.forEach((field: string) => {
       if (patterns.TEMPORAL.test(field)) semanticGroups['Dates & Time'].push(field);
       if (patterns.GEOGRAPHIC.test(field)) semanticGroups['Location'].push(field);
       if (patterns.FINANCIAL.test(field)) semanticGroups['Financials'].push(field);
@@ -1017,7 +1043,7 @@ const App: React.FC = () => {
     });
 
     // Add semantic groups if they have fields
-    Object.entries(semanticGroups).forEach(([name, fields]) => {
+    Object.entries(semanticGroups).forEach(([name, fields]: [string, string[]]) => {
       if (fields.length > 0) {
         groups[name] = [...new Set(fields)]; // Deduplicate just in case
       }
@@ -1215,11 +1241,8 @@ const App: React.FC = () => {
                     pivotConfig={pivotConfig}
                     filters={filters}
                     dispatch={dispatch}
-                    fieldGroups={dynamicFieldGroups}
                     allAvailableFields={availableFields}
                     state={state}
-                    sqlQuery={sqlQuery}
-                    executeQuery={executeQuery}
                     onPreviewTable={handlePreviewTable}
                     onBatchUpdate={handlePivotBatchUpdate}
                   />
@@ -1255,6 +1278,8 @@ const App: React.FC = () => {
                     joins={state.joins}
                     metrics={state.metrics}
                     hiddenFields={state.hiddenFields}
+                    onLoadConfig={handleLoadConfig}
+                    configName={state.configName}
                   />
                 </ErrorBoundary>
               </div>

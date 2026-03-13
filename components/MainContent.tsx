@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import DataTable from './DataTable';
 import { DataRow } from '../types';
 import { DatabaseIcon, ChevronDownIcon } from './icons';
+import ReportIssueModal from './ReportIssueModal';
 
 interface MainContentProps {
   data: DataRow[];
@@ -17,6 +18,8 @@ interface MainContentProps {
   onRowsPerPageChange: (rows: number) => void;
   isDemoMode: boolean;
   isPristine: boolean;
+  metrics?: import('../types').Metric[];
+  fieldMetadata?: Record<string, import('../types').FieldMetadata>;
 }
 
 const EmptyPlaceholder: React.FC<{ isDemoMode: boolean }> = ({ isDemoMode }) => {
@@ -50,13 +53,18 @@ const MainContent: React.FC<MainContentProps> = (props) => {
     onPageChange,
     onRowsPerPageChange,
     isDemoMode,
-    isPristine
+    isPristine,
+    metrics = [],
+    fieldMetadata = {},
   } = props;
 
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportItemDetails, setReportItemDetails] = useState<{ type: 'preset' | 'field' | 'metric', name: string } | null>(null);
+
 
   return (
-    <main className="flex-1 p-4 bg-background flex flex-col overflow-hidden relative">
+    <main className="flex-1 p-4 bg-background flex flex-col overflow-hidden relative z-40">
       <div className="flex flex-col flex-1 bg-card border-2 border-border shadow-brutal overflow-hidden">
         {totalRows === 0 && !isLoading && isPristine ? (
           <EmptyPlaceholder isDemoMode={isDemoMode} />
@@ -127,11 +135,22 @@ const MainContent: React.FC<MainContentProps> = (props) => {
                 totalRows={totalRows}
                 onPageChange={onPageChange}
                 onRowsPerPageChange={onRowsPerPageChange}
+                metrics={metrics}
+                fieldMetadata={fieldMetadata}
               />
             </div>
           </>
         )}
       </div>
+      <ReportIssueModal
+          isOpen={reportModalOpen}
+          onClose={() => {
+              setReportModalOpen(false);
+              setReportItemDetails(null);
+          }}
+          contextType={reportItemDetails?.type || 'preset'}
+          itemName={reportItemDetails?.name || ''}
+      />
     </main>
   );
 };

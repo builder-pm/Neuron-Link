@@ -61,7 +61,7 @@ Get the NeuronLink workbench running in under 2 minutes:
 1.  **Clone & Install**
     ```bash
     git clone git@github.com:builder-pm/Neuron-Link.git
-    cd NeuronLink-lakehouse
+    cd Neuron-Link
     npm install
     ```
 

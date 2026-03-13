@@ -128,7 +128,7 @@ const DbCredentialsModal: React.FC<DbCredentialsModalProps> = ({
 
   return (
     <div
-      className="brutal-overlay z-[100]"
+      className="brutal-overlay"
       onClick={onClose}
       role="dialog"
       aria-modal="true"

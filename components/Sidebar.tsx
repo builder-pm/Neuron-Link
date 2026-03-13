@@ -31,6 +31,8 @@ interface SidebarProps {
   onNewChat?: () => void;
   metrics: import('../types').Metric[];
   hiddenFields: Set<string>;
+  onLoadConfig: (config: any, name: string) => void;
+  configName: string;
 }
 
 type SidebarTab = 'fields' | 'chat';
@@ -93,6 +95,9 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
             fieldAliases={props.fieldAliases}
             metrics={props.metrics}
             hiddenFields={props.hiddenFields}
+            fieldMetadata={props.semanticContext.fieldMetadata || {}}
+            onLoadConfig={props.onLoadConfig}
+            configName={props.configName}
           />
         ) : (
           isGuest ? (

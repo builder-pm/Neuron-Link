@@ -111,7 +111,7 @@ export const MetricSuggestionModal: React.FC<MetricSuggestionModalProps> = ({
     const unresolvableFields = missingFields.filter(f => !suggestions[f] || suggestions[f].length === 0);
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in-0">
+        <div className="brutal-overlay">
             <div className="w-[500px] border border-border bg-card shadow-lg rounded-lg flex flex-col max-h-[80vh]">
 
                 {/* Header */}

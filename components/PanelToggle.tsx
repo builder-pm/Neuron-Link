@@ -8,7 +8,7 @@ interface PanelToggleProps {
 
 const PanelToggle: React.FC<PanelToggleProps> = ({ isOpen, onToggle }) => {
   return (
-    <div className="absolute top-1/2 right-0 -translate-y-1/2 z-20">
+    <div className="absolute top-1/2 right-0 -translate-y-1/2 z-[60]">
       <button
         onClick={onToggle}
         className="w-6 h-6 bg-card border-2 border-border flex items-center justify-center shadow-brutal hover:bg-primary hover:text-primary-foreground transition-all focus:ring-2 focus:ring-primary"

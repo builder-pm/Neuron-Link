@@ -57,7 +57,7 @@ const SaveConfigModal: React.FC<SaveConfigModalProps> = ({ isOpen, onClose, type
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="brutal-overlay p-4">
             <div className="bg-card w-full max-w-md border-2 border-border shadow-brutal-xl p-6 animate-in fade-in zoom-in-95 duration-200 rounded-none">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-bold uppercase tracking-wider font-mono">
