@@ -50,7 +50,7 @@ export interface ChatThread {
 export type MessageRole = 'user' | 'model';
 
 export interface AIAction {
-    action: 'pivot' | 'filter' | 'query' | 'propose_model' | 'propose_analysis' | 'suggest_fields';
+    action: 'pivot' | 'filter' | 'query' | 'propose_model' | 'propose_analysis' | 'suggest_fields' | 'propose_preset';
     config?: Partial<PivotConfig> | Filter;
     query?: string;
     thought?: string;
@@ -67,6 +67,11 @@ export interface AIAction {
     suggestedFields?: Array<{ table: string; fields: string[] }>;
     suggestedJoins?: Join[];
     reason?: string;
+    // Preset recommendation payload
+    presetProposal?: {
+        presetName: string;
+        description: string;
+    };
 }
 
 export interface SemanticContext {
